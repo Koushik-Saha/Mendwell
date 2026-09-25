@@ -8,7 +8,9 @@ const schema = z
     BETTER_AUTH_URL: z.url(),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
-    RESEND_API_KEY: z.string().min(1).optional(),
+    MAILTRAP_TOKEN: z.string().min(1).optional(),
+    /** A Mailtrap Email Testing inbox id. When set, email is captured there instead of delivered. */
+    MAILTRAP_SANDBOX_INBOX_ID: z.string().regex(/^\d+$/, "must be a numeric Mailtrap inbox id").optional(),
     EMAIL_FROM: z.string().min(3).optional(),
     SENTRY_DSN: z.string().optional(),
   })
@@ -16,9 +18,15 @@ const schema = z
     if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
       ctx.addIssue({ code: "custom", path: ["GOOGLE_CLIENT_SECRET"], message: "set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither" });
     }
+    if (env.MAILTRAP_TOKEN && !env.EMAIL_FROM) {
+      ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "required with MAILTRAP_TOKEN, e.g. Mendwell <noreply@your-domain>" });
+    }
     if (env.NODE_ENV === "production") {
-      if (!env.RESEND_API_KEY) ctx.addIssue({ code: "custom", path: ["RESEND_API_KEY"], message: "required in production" });
+      if (!env.MAILTRAP_TOKEN) ctx.addIssue({ code: "custom", path: ["MAILTRAP_TOKEN"], message: "required in production" });
       if (!env.EMAIL_FROM) ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "required in production" });
+      if (env.MAILTRAP_SANDBOX_INBOX_ID) {
+        ctx.addIssue({ code: "custom", path: ["MAILTRAP_SANDBOX_INBOX_ID"], message: "must be unset in production (sandbox mail is never delivered)" });
+      }
       if (!env.BETTER_AUTH_URL.startsWith("https://")) {
         ctx.addIssue({ code: "custom", path: ["BETTER_AUTH_URL"], message: "must be https in production" });
       }
