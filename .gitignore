@@ -16,3 +16,4 @@ playwright-report/
 .claude/
 *.md
 !README.md
+.dev-outbox/

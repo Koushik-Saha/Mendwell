@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Atkinson_Hyperlegible_Next } from "next/font/google";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
@@ -22,13 +23,15 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Per-request CSP nonce from src/middleware.ts.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" className={atkinson.variable} suppressHydrationWarning>
       <head>
         {/* Static, reviewed string (src/lib/theme.ts). Sets data-theme before paint to avoid a flash. */}
         {/* eslint-disable-next-line no-restricted-syntax */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="antialiased">{children}</body>
     </html>

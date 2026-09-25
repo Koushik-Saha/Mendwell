@@ -11,7 +11,11 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "fixtures:serve": "pnpm --filter @mendwell/fixtures serve"
+    "fixtures:serve": "pnpm --filter @mendwell/fixtures serve",
+    "test:cross-org": "pnpm --filter @mendwell/web test:cross-org",
+    "db:generate": "pnpm --filter @mendwell/db generate",
+    "db:migrate": "pnpm --filter @mendwell/db migrate",
+    "db:studio": "pnpm --filter @mendwell/db studio"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

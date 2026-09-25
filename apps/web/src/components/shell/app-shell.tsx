@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { BrandMark } from "@/components/brand-mark";
+import { AccountMenu, type Account } from "./account-menu";
 import { MobileNav, SidebarNav } from "./nav-links";
 import { ThemeToggle } from "./theme-toggle";
 import { WritesStatus } from "./writes-status";
@@ -14,7 +15,7 @@ function Wordmark() {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, account }: { children: React.ReactNode; account: Account }) {
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[15rem_1fr]">
       <a
@@ -32,6 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarNav />
         </nav>
         <div className="space-y-4 border-t border-border px-2 pt-4">
+          <AccountMenu account={account} />
           <Suspense fallback={<div className="h-10" />}>
             <WritesStatus />
           </Suspense>
@@ -50,6 +52,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav aria-label="Main">
           <MobileNav />
         </nav>
+        <div className="border-t border-border py-3">
+          <AccountMenu account={account} />
+        </div>
       </header>
 
       <main id="main" tabIndex={-1} className="min-w-0 px-4 py-6 outline-none sm:px-8 md:py-8 lg:px-12">

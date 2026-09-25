@@ -7,5 +7,9 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.test.ts"],
+    environment: "node",
+    // Each integration file boots its own PGlite; give it room on slow CI runners.
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
   },
 });
