@@ -29,6 +29,7 @@ export function TeamSection({
 }) {
   const router = useRouter();
   const canManage = myRole === "owner" || myRole === "admin";
+  const ownerCount = members.filter((m) => m.role === "owner").length;
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"member" | "admin">("member");
   const [busy, setBusy] = useState<string | null>(null);
@@ -67,14 +68,17 @@ export function TeamSection({
       <ul className="divide-y divide-border rounded-[var(--radius-panel)] border border-border bg-card">
         {members.map((m) => {
           const isMe = m.userId === myUserId;
-          const editable = canManage && (myRole === "owner" || m.role !== "owner");
+          // The last owner can't be demoted or removed, so don't offer controls that would be refused.
+          const lastOwner = m.role === "owner" && ownerCount === 1;
+          const editable = canManage && !lastOwner && (myRole === "owner" || m.role !== "owner");
+          const hasName = Boolean(m.name) && m.name !== m.email;
           return (
             <li key={m.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="truncate font-semibold">
-                  {m.name || m.email} {isMe ? <span className="font-normal text-muted-foreground">(you)</span> : null}
+                  {hasName ? m.name : m.email} {isMe ? <span className="font-normal text-muted-foreground">(you)</span> : null}
                 </p>
-                <p className="truncate text-sm text-muted-foreground">{m.email}</p>
+                {hasName ? <p className="truncate text-sm text-muted-foreground">{m.email}</p> : null}
               </div>
               <div className="flex items-center gap-2">
                 {editable ? (

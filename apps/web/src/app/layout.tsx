@@ -29,9 +29,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={atkinson.variable} suppressHydrationWarning>
       <head>
-        {/* Static, reviewed string (src/lib/theme.ts). Sets data-theme before paint to avoid a flash. */}
+        {/* Static, reviewed string (src/lib/theme.ts). Sets data-theme before paint to avoid a flash.
+            suppressHydrationWarning: browsers blank the nonce attribute after load (so scripts can't
+            read it), which React would otherwise report as a mismatch. */}
         {/* eslint-disable-next-line no-restricted-syntax */}
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="antialiased">{children}</body>
     </html>
