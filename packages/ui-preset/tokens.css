@@ -1,0 +1,105 @@
+/*
+ * Mendwell tokens for Tailwind v4 + shadcn/ui. Mirrors src/index.ts (tested).
+ * Theme is chosen by [data-theme] on <html>, set before paint by the web app.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #F4F6F8;
+  --foreground: #18212E;
+  --card: #FFFFFF;
+  --card-foreground: #18212E;
+  --sunken: #EAEEF3;
+  --muted: #EAEEF3;
+  --muted-foreground: #525D6E;
+  --border: #D8DDE5;
+  --border-strong: #7D8798;
+  --input: #7D8798;
+  --primary: #34489E;
+  --primary-foreground: #FFFFFF;
+  --primary-soft: #E4E9F7;
+  --ring: #34489E;
+  --verified: #1E6F42;
+  --verified-soft: #E1F0E6;
+  --waiting: #8A5500;
+  --waiting-soft: #F8EDD6;
+  --alert: #A9302F;
+  --alert-soft: #FAE4E3;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #121827;
+  --foreground: #E4E8F1;
+  --card: #1A2234;
+  --card-foreground: #E4E8F1;
+  --sunken: #0E1320;
+  --muted: #222B40;
+  --muted-foreground: #A3ACBF;
+  --border: #2A3450;
+  --border-strong: #67738F;
+  --input: #67738F;
+  --primary: #9DB0F5;
+  --primary-foreground: #121827;
+  --primary-soft: #26315A;
+  --ring: #9DB0F5;
+  --verified: #72D39A;
+  --verified-soft: #16342A;
+  --waiting: #EDB65C;
+  --waiting-soft: #3A2C13;
+  --alert: #F39A96;
+  --alert-soft: #401E23;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--card-foreground);
+  --color-sunken: var(--sunken);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--primary-soft);
+  --color-accent-foreground: var(--foreground);
+  --color-secondary: var(--muted);
+  --color-secondary-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-ring: var(--ring);
+  --color-destructive: var(--alert);
+  --color-verified: var(--verified);
+  --color-verified-soft: var(--verified-soft);
+  --color-waiting: var(--waiting);
+  --color-waiting-soft: var(--waiting-soft);
+  --color-alert: var(--alert);
+  --color-alert-soft: var(--alert-soft);
+
+  --font-sans: var(--font-atkinson, "Atkinson Hyperlegible Next"), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale: 13 / 14 / 16 / 20 / 24 — dense but readable. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 2rem;
+
+  /* Radius steps down with hierarchy: panels > controls > chips. */
+  --radius-panel: 0.75rem;
+  --radius-control: 0.5rem;
+  --radius-chip: 9999px;
+}

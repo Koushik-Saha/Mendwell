@@ -1,0 +1,20 @@
+{
+  "name": "@mendwell/fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Static WordPress-like sites with known, documented issues for scanner and verifier tests.",
+  "type": "module",
+  "exports": {
+    ".": "./serve.mjs",
+    "./manifest.json": "./manifest.json"
+  },
+  "scripts": {
+    "serve": "node serve.mjs --port 4000",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@mendwell/ui-preset": "workspace:*"
+  }
+}

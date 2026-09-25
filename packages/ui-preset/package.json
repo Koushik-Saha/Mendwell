@@ -1,0 +1,16 @@
+{
+  "name": "@mendwell/ui-preset",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design tokens shared by the web app and emails.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./tokens.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  }
+}

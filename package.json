@@ -1,0 +1,28 @@
+{
+  "name": "mendwell",
+  "private": true,
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "fixtures:serve": "pnpm --filter @mendwell/fixtures serve"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@next/eslint-plugin-next": "15.5.26",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "globals": "^16.0.0",
+    "turbo": "^2.10.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^5.0.1"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@mendwell/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "trigger dev",
+    "deploy": "trigger deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "4.6.4",
+    "playwright": "1.63.0"
+  },
+  "devDependencies": {
+    "@trigger.dev/build": "4.6.4",
+    "trigger.dev": "4.6.4"
+  }
+}

@@ -1,0 +1,49 @@
+@import "tailwindcss";
+@import "@mendwell/ui-preset/tokens.css";
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    font-feature-settings: "ss01";
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* The running stitch: Mendwell's one signature mark. Used for the active nav seam. */
+  .stitch-seam {
+    background-image: repeating-linear-gradient(to bottom, var(--color-primary) 0 6px, transparent 6px 10px);
+  }
+
+  /* An empty slot is a patch waiting to be sewn in: solid edge, stitched line just inside it. */
+  .patch {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    background: var(--color-card);
+    outline: 1.5px dashed var(--color-border-strong);
+    outline-offset: -9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

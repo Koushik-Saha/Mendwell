@@ -1,0 +1,4 @@
+body { font-family: "Helvetica Neue", Arial, sans-serif; color: #2b2b2b; background: #fdfdfd; margin: 1rem; }
+.products { list-style: none; padding: 0; display: flex; gap: 1rem; }
+/* Planted: #9a9a9a on #fdfdfd is 2.73:1 — fails WCAG AA for normal text. */
+.stock, .fine-print { color: #9a9a9a; }

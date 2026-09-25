@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+  - packages/*
+  - fixtures
+
+# pnpm blocks dependency install scripts by default. Allow only what we need (SECURITY.md T12).
+allowBuilds:
+  esbuild: true
+  # Downloads the Sentry CLI binary for source-map upload. Enable when SENTRY_AUTH_TOKEN is set up in CI.
+  "@sentry/cli": false
+  # Downloads Depot's builder for `trigger deploy`. Enable when we first deploy the worker.
+  "@depot/cli": false
