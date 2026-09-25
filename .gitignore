@@ -11,3 +11,8 @@ coverage/
 test-results/
 playwright-report/
 .vercel/
+
+# Keep project notes and Claude config local. Only READMEs are published.
+.claude/
+*.md
+!README.md
