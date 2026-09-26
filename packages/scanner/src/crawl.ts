@@ -76,7 +76,12 @@ export function inScope(url: string, scope: { origin: string; prefix: string }):
  * so the browser never opens its own connections: same SSRF rules, same pinning, per hop.
  * Only GET/HEAD are allowed: the scanner never submits forms or writes (SECURITY.md T5).
  */
-export async function routeThroughSafeFetch(context: BrowserContext, safeFetch: SafeFetch) {
+export async function routeThroughSafeFetch(
+  context: BrowserContext,
+  safeFetch: SafeFetch,
+  /** Awaited right before each page (document) request is sent: where Crawl-delay is enforced. */
+  beforeDocumentRequest?: () => Promise<void>,
+) {
   // First layer: pages can't submit forms at all (scripts that auto-submit would otherwise
   // navigate away from the page being scanned). The route below still refuses any non-GET.
   await context.addInitScript(() => {
@@ -90,6 +95,7 @@ export async function routeThroughSafeFetch(context: BrowserContext, safeFetch: 
     const method = request.method();
     if (!/^https?:/i.test(url) || (method !== "GET" && method !== "HEAD")) return route.abort("blockedbyclient");
     try {
+      if (beforeDocumentRequest && request.resourceType() === "document") await beforeDocumentRequest();
       const res = await safeFetch(url, {
         method: method as "GET" | "HEAD",
         redirect: "manual", // let Chromium follow, so every hop comes back through here
@@ -191,15 +197,23 @@ export async function crawl(options: CrawlOptions): Promise<CrawlResult> {
   for (const url of sitemapUrls) enqueue(url, "sitemap");
 
   const context = await browser.newContext({ userAgent, serviceWorkers: "block", javaScriptEnabled: true, ignoreHTTPSErrors: false });
-  await routeThroughSafeFetch(context, safeFetch);
+  // Crawl-delay is enforced as late as possible, just before the request leaves, so browser and
+  // CPU jitter can't bunch requests up at the server. Redirect hops count as page loads too.
+  let nextSlot = 0;
+  const pace = async () => {
+    const wait = nextSlot - Date.now();
+    nextSlot = Math.max(nextSlot, Date.now()) + delayMs;
+    if (wait > 0) await sleep(wait);
+  };
+  await routeThroughSafeFetch(context, safeFetch, delayMs > 0 ? pace : undefined);
   const pages: CrawledPage[] = [];
   let claimed = 0;
-  let nextSlot = 0; // earliest time the next navigation may start (Crawl-delay)
   let active = 0;
 
   async function worker() {
     const page = await context.newPage();
-    page.setDefaultNavigationTimeout(options.navigationTimeoutMs ?? 30_000);
+    // Pacing waits happen inside navigation, so allow for them: the other worker's slot plus up to 5 redirect hops.
+    page.setDefaultNavigationTimeout((options.navigationTimeoutMs ?? 30_000) + delayMs * (concurrency + 5));
     try {
       for (;;) {
         const job = queue.shift();
@@ -219,9 +233,6 @@ export async function crawl(options: CrawlOptions): Promise<CrawlResult> {
         claimed++;
         active++;
         try {
-          const wait = nextSlot - Date.now();
-          nextSlot = Math.max(nextSlot, Date.now()) + delayMs;
-          if (wait > 0) await sleep(wait);
           pages.push(await visit(page, job.url, job.via));
         } finally {
           active--;
