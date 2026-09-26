@@ -11,7 +11,7 @@
  */
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { invitations } from "@mendwell/db/schema";
+import { invitations, issues, scans, sites } from "@mendwell/db/schema";
 import type { SeededOrg } from "@mendwell/db/testing";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
@@ -118,6 +118,31 @@ const cases: Record<RouteKey, Case> = {
     },
     body: (s) => ({ token: s.extra.token }),
     controlUser: (s) => s.extra.inviteeId ?? "",
+    controlStatus: 200,
+  },
+  "GET /api/sites": { kind: "collection", leaks: (s) => [s.a.site.id, s.a.site.url] },
+  "GET /api/sites/[id]": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
+  "GET /api/sites/[id]/issues": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
+  "GET /api/sites/[id]/scans/latest": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
+  "POST /api/sites/[id]/scan-now": {
+    kind: "resource",
+    prepare: async (h, { a }) => {
+      await h.db.update(sites).set({ ownershipVerifiedAt: new Date() }).where(eq(sites.id, a.site.id));
+      await h.db.update(scans).set({ status: "succeeded" }).where(eq(scans.id, a.scan.id)); // no scan in flight
+      return {};
+    },
+    params: (s) => ({ id: s.a.site.id }),
+    controlStatus: 202,
+  },
+  "GET /api/sites/[id]/issues/[issueId]/screenshot": {
+    kind: "resource",
+    prepare: async (h, { a }) => {
+      const key = `evidence/${a.orgId}/${a.site.id}/${a.issue.fingerprint}.png`;
+      await h.store.put(key, new Uint8Array([0x89, 0x50, 0x4e, 0x47]), "image/png");
+      await h.db.update(issues).set({ evidenceKey: key }).where(eq(issues.id, a.issue.id));
+      return {};
+    },
+    params: (s) => ({ id: s.a.site.id, issueId: s.a.issue.id }),
     controlStatus: 200,
   },
   "POST /api/two-factor/enable": { kind: "exempt", reason: "User-scoped: changes only the caller's own 2FA. No org or resource id." },

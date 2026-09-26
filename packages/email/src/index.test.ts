@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { invitationEmail, magicLinkEmail } from "./index";
+import { alertEmail, invitationEmail, magicLinkEmail } from "./index";
 
 const FORBIDDEN_CLAIMS = [/ADA compliant/i, /WCAG compliant/i, /guarantee/i, /lawsuit-proof/i, /100% accessible/i, /certified/i];
 
@@ -41,11 +41,28 @@ describe("invitationEmail", () => {
   });
 });
 
+describe("alertEmail", () => {
+  it("leads with the site and the headline, and links to the dashboard", async () => {
+    const email = await alertEmail({
+      siteName: "Rivera Plumbing",
+      siteUrl: "https://rivera.example",
+      headline: "Your site is down",
+      body: "It didn't respond to our last two checks.",
+      action: "Contact your host.",
+      dashboardUrl: "https://app.mendwell.test/sites/1",
+    });
+    expect(email.subject).toBe("Rivera Plumbing: Your site is down");
+    expect(email.text).toContain("It didn't respond to our last two checks.");
+    expect(email.text).toContain("https://app.mendwell.test/sites/1");
+  });
+});
+
 describe("email copy (hard rule 9)", () => {
   it("never makes compliance claims, and carries the standard disclaimer", async () => {
     const emails = [
       await magicLinkEmail({ url: "https://x.test", expiresInMinutes: 15 }),
       await invitationEmail({ url: "https://x.test", orgName: "O", inviterName: "I", role: "member", expiresAt: new Date() }),
+      await alertEmail({ siteName: "S", siteUrl: "https://s.test", headline: "H", body: "B", dashboardUrl: "https://app.test" }),
     ];
     for (const email of emails) {
       for (const claim of FORBIDDEN_CLAIMS) expect(email.text).not.toMatch(claim);

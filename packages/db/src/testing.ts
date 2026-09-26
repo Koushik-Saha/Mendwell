@@ -85,7 +85,10 @@ export async function seedOrgGraph(db: Db, label: string) {
   const approval = one(
     await db.insert(s.approvals).values({ orgId, fixId: fix.id, userId: user.id, via: "app", decision: "approved" }).returning(),
   );
-  const alert = one(await db.insert(s.alerts).values({ orgId, siteId: site.id, type: "ssl", severity: "warning", message: "SSL expires soon" }).returning());
+  const alert = one(
+    await db.insert(s.alerts).values({ orgId, siteId: site.id, type: "ssl", severity: "warning", message: "SSL expires soon", dedupeKey: `ssl:${label}` }).returning(),
+  );
+  await db.insert(s.uptimeChecks).values({ orgId, siteId: site.id, up: true, status: 200, ms: 120 });
   const report = one(
     await db
       .insert(s.reports)

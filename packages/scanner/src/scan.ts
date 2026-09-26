@@ -30,6 +30,8 @@ export type ScanOptions = {
   /** Port for the TLS check (tests only; production is always 443). */
   sslPort?: number;
   sslCa?: string;
+  /** Called as the scan moves along (for the UI's progress bar). Errors are ignored. */
+  onProgress?: (progress: { phase: "checking" | "crawling"; pagesDone: number; pageCap: number }) => void | Promise<void>;
 };
 
 export type ScanResult = {
@@ -59,6 +61,15 @@ export async function scanSite(options: ScanOptions): Promise<ScanResult> {
     return { ...rest, issues: [...byFingerprint.values()], durationMs: Date.now() - started };
   };
 
+  const pageCap = options.pageCap ?? 100;
+  const report = async (phase: "checking" | "crawling", pagesDone: number) => {
+    try {
+      await options.onProgress?.({ phase, pagesDone, pageCap });
+    } catch {
+      // Progress is cosmetic; never let it fail a scan.
+    }
+  };
+  await report("checking", 0);
   const uptime = await checkUptime(root.toString(), safeFetch);
   findings.push(...uptime.findings);
   if (uptime.result.error?.startsWith("blocked_")) {
@@ -80,15 +91,18 @@ export async function scanSite(options: ScanOptions): Promise<ScanResult> {
 
   const browser = options.browser ?? (await chromium.launch({ headless: true }));
   try {
+    let pagesDone = 0;
+    await report("crawling", 0);
     const result = await crawl({
       startUrl: root.toString(),
       safeFetch,
       browser,
       userAgent,
-      pageCap: options.pageCap,
+      pageCap,
       maxDurationMs: options.maxDurationMs,
       onPage: async (page, crawled) => {
         findings.push(...(await runAxe(page, crawled.finalUrl, { screenshots: options.screenshots })));
+        await report("crawling", ++pagesDone);
       },
     });
     findings.push(...checkMeta(result.pages), ...checkOpenGraph(result.pages));

@@ -54,7 +54,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ["fixtures/*.mjs"],
+    // CLI entry points talk to a human through the terminal.
+    files: ["fixtures/*.mjs", "**/scripts/*.mjs"],
     rules: { "no-console": "off" },
   },
 );

@@ -152,6 +152,10 @@ export const scans = pgTable(
     lighthouse: jsonb("lighthouse"),
     error: text("error"),
     workerSeconds: integer("worker_seconds").notNull().default(0),
+    /** Live progress for the UI: { phase, pagesDone, pageCap }. */
+    progress: jsonb("progress").notNull().default({}),
+    /** Trigger.dev run id, for support and cancellation. */
+    triggerRunId: text("trigger_run_id"),
     ...timestamps,
   },
   (t) => [
@@ -322,13 +326,42 @@ export const alerts = pgTable(
     type: text("type").notNull(),
     severity: alertSeverityEnum("severity").notNull(),
     message: text("message").notNull(),
+    /**
+     * Idempotency (hard rule 10): one alert per (site, key), e.g. "downtime:<started-at>" or
+     * "ssl:<valid-to>:7". A retried task can't raise or email the same alert twice.
+     */
+    dedupeKey: text("dedupe_key").notNull(),
     acknowledgedAt: timestamptz("acknowledged_at"),
+    /** Set when the condition clears (site back up, certificate renewed). */
+    resolvedAt: timestamptz("resolved_at"),
     ...timestamps,
   },
   (t) => [
     index("alerts_org_id_idx").on(t.orgId),
     index("alerts_site_id_idx").on(t.siteId),
+    unique("alerts_site_dedupe_unique").on(t.siteId, t.dedupeKey),
     siteFk("alerts_site_fk", t.siteId, t.orgId),
+  ],
+);
+
+/** Hourly uptime results (PROJECT_SPEC §4). Downtime alerts need the last two. */
+export const uptimeChecks = pgTable(
+  "uptime_checks",
+  {
+    id: id(),
+    orgId: orgIdColumn(),
+    siteId: uuid("site_id").notNull(),
+    checkedAt: timestamptz("checked_at").notNull().defaultNow(),
+    up: boolean("up").notNull(),
+    status: integer("status"),
+    ms: integer("ms").notNull(),
+    error: text("error"),
+    ...timestamps,
+  },
+  (t) => [
+    index("uptime_checks_org_id_idx").on(t.orgId),
+    index("uptime_checks_site_checked_idx").on(t.siteId, t.checkedAt),
+    siteFk("uptime_checks_site_fk", t.siteId, t.orgId),
   ],
 );
 

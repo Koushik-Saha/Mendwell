@@ -70,7 +70,12 @@ export async function parseJson<T>(req: Request, schema: ZodType<T>): Promise<T>
 
 /** The `[id]` segment. Anything that can't be an id is simply not found. */
 export async function routeId(params: Promise<{ id: string }>): Promise<string> {
-  const { id } = await params;
-  if (id.length === 0 || id.length > 64) throw notFound();
-  return id;
+  return routeParam(params, "id");
+}
+
+/** Any dynamic segment, with the same rule: a value that can't be an id is not found. */
+export async function routeParam<K extends string>(params: Promise<Record<K, string>>, name: K): Promise<string> {
+  const value = (await params)[name];
+  if (typeof value !== "string" || value.length === 0 || value.length > 64) throw notFound();
+  return value;
 }

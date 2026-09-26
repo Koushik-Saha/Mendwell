@@ -2,11 +2,12 @@ import { createHmac } from "node:crypto";
 import { unsafeOrgId, type OrgId, type Role } from "@mendwell/core";
 import { createRepositories, type Db } from "@mendwell/db";
 import { memberships, users } from "@mendwell/db/schema";
+import { createMemoryStore } from "@mendwell/db/storage";
 import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { EmailMessage } from "@mendwell/email";
 import { NextRequest } from "next/server";
 import { createAuth, type Auth } from "@/lib/server/auth";
-import { setServerContextForTests } from "@/lib/server/context";
+import { setServerContextForTests, type ScanJob } from "@/lib/server/context";
 import { ACTIVE_ORG_COOKIE } from "@/lib/server/session";
 
 export const BASE_URL = "http://mendwell.test";
@@ -28,7 +29,21 @@ export async function createHarness() {
     testing: true,
     sendMagicLink: async ({ email, url }) => mailer.send({ to: email, subject: "magic", html: url, text: url }),
   });
-  setServerContextForTests({ env: { BETTER_AUTH_URL: BASE_URL }, db, repos: createRepositories(db), auth, mailer });
+  const store = createMemoryStore();
+  const enqueued: ScanJob[] = [];
+  setServerContextForTests({
+    env: { BETTER_AUTH_URL: BASE_URL },
+    db,
+    repos: createRepositories(db),
+    auth,
+    mailer,
+    store,
+    scansEnabled: true,
+    enqueueScan: async (job) => {
+      enqueued.push(job);
+      return { runId: `run_test_${enqueued.length}` };
+    },
+  });
   const test = (await auth.$context).test;
 
   let counter = 0;
@@ -82,6 +97,8 @@ export async function createHarness() {
     db: db as Db,
     auth,
     outbox,
+    store,
+    enqueued,
     uniq,
     signIn,
     createUser,

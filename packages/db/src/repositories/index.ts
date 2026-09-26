@@ -1,12 +1,14 @@
 import type { Db } from "../db";
 import { alertsRepo, approvalsRepo, billingRepo, fixesRepo, issuesRepo, reportsRepo, scansRepo } from "./findings";
 import { accessRepo, auditRepo, invitationsRepo, membersRepo, organizationsRepo } from "./orgs";
+import { alertRecordsRepo, issueRecordsRepo, scanRunsRepo, sitePagesRepo, teamContactsRepo, uptimeRepo } from "./pipeline";
 import { clientsRepo, pagesRepo, pairingCodesRepo, siteCategoriesRepo, sitesRepo } from "./sites";
 
 /**
- * Every tenant repository function takes an OrgId first. Two deliberate exceptions, both
- * documented at the definition: access.* (establishes membership, which is how an OrgId is
- * obtained) and invitations.findPendingByTokenHash (the invitee isn't a member yet).
+ * Every tenant repository function takes an OrgId first. Deliberate exceptions, each documented at
+ * the definition: access.* (establishes membership, which is how an OrgId is obtained),
+ * invitations.findPendingByTokenHash (the invitee isn't a member yet), and systemSitesRepo
+ * (worker schedulers only; exported separately and not part of this object).
  */
 export function createRepositories(db: Db) {
   return {
@@ -27,8 +29,15 @@ export function createRepositories(db: Db) {
     alerts: alertsRepo(db),
     reports: reportsRepo(db),
     billing: billingRepo(db),
+    scanRuns: scanRunsRepo(db),
+    sitePages: sitePagesRepo(db),
+    issueRecords: issueRecordsRepo(db),
+    alertRecords: alertRecordsRepo(db),
+    uptime: uptimeRepo(db),
+    teamContacts: teamContactsRepo(db),
   };
 }
 
 export type Repositories = ReturnType<typeof createRepositories>;
 export type { Actor, AuditEntry } from "./orgs";
+export { systemSitesRepo, urlHash, type IssueRow, type ScanCounts, type ScanProgress } from "./pipeline";

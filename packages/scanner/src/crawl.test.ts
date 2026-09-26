@@ -140,10 +140,16 @@ describe("crawl", () => {
   }, 60_000);
 
   it("honours Crawl-delay between page requests", async () => {
-    await run({ robots: "User-agent: *\nCrawl-delay: 0.3\n" });
+    const delayMs = 300;
+    await run({ robots: `User-agent: *\nCrawl-delay: ${delayMs / 1000}\n` });
     const docs = hits.filter((h) => /^\/site\/(p\d|from-sitemap)?\/?$/.test(h.path)).map((h) => h.at);
     expect(docs.length).toBeGreaterThan(3);
-    for (let i = 1; i < docs.length; i++) expect((docs[i] ?? 0) - (docs[i - 1] ?? 0)).toBeGreaterThanOrEqual(280);
+    // Arrival times at a server in this same (busy) process jitter, which stretches one gap and
+    // shrinks the next by the same amount. So assert the rate over the whole crawl, plus a floor
+    // on every gap that any real pacing bug (requests bunched together) would break.
+    const span = (docs.at(-1) ?? 0) - (docs[0] ?? 0);
+    expect(span).toBeGreaterThanOrEqual((docs.length - 1) * delayMs - 100);
+    for (let i = 1; i < docs.length; i++) expect((docs[i] ?? 0) - (docs[i - 1] ?? 0)).toBeGreaterThanOrEqual(delayMs / 2);
   }, 60_000);
 
   it("identifies as MendwellBot on every request, including robots.txt and subresources", async () => {

@@ -9,6 +9,8 @@ const base = {
 };
 const prod = { ...base, NODE_ENV: "production", BETTER_AUTH_URL: "https://app.mendwell.test" };
 const mailtrap = { MAILTRAP_TOKEN: "tok", EMAIL_FROM: "Mendwell <noreply@koushiksaha.dev>" };
+const r2 = { R2_ACCOUNT_ID: "acc", R2_ACCESS_KEY_ID: "key", R2_SECRET_ACCESS_KEY: "secret", R2_BUCKET: "evidence" };
+const prodReady = { ...prod, ...mailtrap, ...r2, TRIGGER_SECRET_KEY: "tr_prod_x" };
 
 describe("parseServerEnv", () => {
   it("accepts a minimal development env", () => {
@@ -36,11 +38,17 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv({ ...base, MAILTRAP_TOKEN: "tok" })).toThrow(/EMAIL_FROM/);
   });
 
-  it("requires Mailtrap Email Sending and https in production", () => {
+  it("requires Mailtrap Email Sending, R2, Trigger.dev and https in production", () => {
     expect(() => parseServerEnv(prod)).toThrow(/MAILTRAP_TOKEN: required in production/);
-    expect(() => parseServerEnv({ ...prod, ...mailtrap, BETTER_AUTH_URL: "http://app.test" })).toThrow(/must be https/);
-    expect(() => parseServerEnv({ ...prod, ...mailtrap, MAILTRAP_SANDBOX_INBOX_ID: "1831231" })).toThrow(/must be unset in production/);
-    expect(parseServerEnv({ ...prod, ...mailtrap }).NODE_ENV).toBe("production");
+    expect(() => parseServerEnv({ ...prodReady, BETTER_AUTH_URL: "http://app.test" })).toThrow(/must be https/);
+    expect(() => parseServerEnv({ ...prodReady, MAILTRAP_SANDBOX_INBOX_ID: "1831231" })).toThrow(/must be unset in production/);
+    expect(() => parseServerEnv({ ...prodReady, TRIGGER_SECRET_KEY: undefined })).toThrow(/TRIGGER_SECRET_KEY: required in production/);
+    expect(() => parseServerEnv({ ...prodReady, R2_BUCKET: undefined })).toThrow(/R2/);
+    expect(parseServerEnv(prodReady).NODE_ENV).toBe("production");
+  });
+
+  it("requires all four R2 variables together", () => {
+    expect(() => parseServerEnv({ ...base, R2_ACCOUNT_ID: "acc" })).toThrow(/all four R2_/);
   });
 
   it("rejects a non-numeric sandbox inbox id", () => {

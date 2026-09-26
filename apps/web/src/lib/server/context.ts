@@ -1,9 +1,13 @@
 import { createRepositories, type Db, type Repositories } from "@mendwell/db";
 import { createDb } from "@mendwell/db/client";
+import { createR2Store, createUnconfiguredStore, type ObjectStore } from "@mendwell/db/storage";
 import { magicLinkEmail, type Mailer } from "@mendwell/email";
 import { createAuth, MAGIC_LINK_TTL_SECONDS, type Auth } from "./auth";
 import { parseServerEnv, type ServerEnv } from "./env";
+import { AppError } from "./errors";
 import { createMailer } from "./mailer";
+
+export type ScanJob = { orgId: string; siteId: string; scanId: string; kind: "manual" };
 
 export type ServerContext = {
   env: Pick<ServerEnv, "BETTER_AUTH_URL">;
@@ -11,7 +15,31 @@ export type ServerContext = {
   repos: Repositories;
   auth: Auth;
   mailer: Mailer;
+  /** Evidence screenshots (R2). */
+  store: ObjectStore;
+  /** False when this server can't start scans (no Trigger.dev key). Checked before creating a scan row. */
+  scansEnabled: boolean;
+  /** Start the scan.site task. Returns the Trigger.dev run id. */
+  enqueueScan: (job: ScanJob) => Promise<{ runId: string }>;
 };
+
+function scanEnqueuer(env: ServerEnv): ServerContext["enqueueScan"] {
+  return async (job) => {
+    if (!env.TRIGGER_SECRET_KEY) {
+      throw new AppError("scans_unavailable", "Scans aren't set up on this server yet (Trigger.dev key missing).", 503);
+    }
+    const { configure, tasks } = await import("@trigger.dev/sdk");
+    configure({ secretKey: env.TRIGGER_SECRET_KEY });
+    const handle = await tasks.trigger("scan.site", job, {
+      // Hard rule 10: a double-click or retried request can't start two runs for one scan row.
+      idempotencyKey: `manual:${job.scanId}`,
+      // One scan at a time per site (worker queue has a limit of 1 per key).
+      concurrencyKey: job.siteId,
+      tags: [`site:${job.siteId}`, `scan:${job.scanId}`],
+    });
+    return { runId: handle.id };
+  };
+}
 
 let current: ServerContext | undefined;
 
@@ -27,7 +55,11 @@ function build(): ServerContext {
     sendMagicLink: async ({ email, url }) =>
       mailer.send({ to: email, ...(await magicLinkEmail({ url, expiresInMinutes: MAGIC_LINK_TTL_SECONDS / 60 })) }),
   });
-  return { env, db, repos: createRepositories(db), auth, mailer };
+  const store =
+    env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET
+      ? createR2Store({ accountId: env.R2_ACCOUNT_ID, accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY, bucket: env.R2_BUCKET })
+      : createUnconfiguredStore(); // development without R2: no screenshots
+  return { env, db, repos: createRepositories(db), auth, mailer, store, scansEnabled: Boolean(env.TRIGGER_SECRET_KEY), enqueueScan: scanEnqueuer(env) };
 }
 
 /** Lazily built on first use so `next build` and tests don't need a database. */

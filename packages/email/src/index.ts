@@ -1,4 +1,5 @@
 import { render } from "@react-email/components";
+import { AlertEmail, type AlertEmailProps } from "./templates/alert";
 import { InvitationEmail, type InvitationEmailProps } from "./templates/invitation";
 import { MagicLinkEmail } from "./templates/magic-link";
 
@@ -75,3 +76,10 @@ export function magicLinkEmail(input: { url: string; expiresInMinutes: number })
 export function invitationEmail(input: InvitationEmailProps) {
   return build(`${input.inviterName} invited you to ${input.orgName} on Mendwell`, InvitationEmail(input));
 }
+
+export function alertEmail(input: AlertEmailProps) {
+  return build(`${input.siteName}: ${input.headline}`, AlertEmail(input));
+}
+
+export type { AlertEmailProps };
+export { mailerFromEnv, mailerKind, type MailEnv, type MailerKind } from "./from-env";

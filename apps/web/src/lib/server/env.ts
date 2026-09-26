@@ -13,6 +13,12 @@ const schema = z
     MAILTRAP_SANDBOX_INBOX_ID: z.string().regex(/^\d+$/, "must be a numeric Mailtrap inbox id").optional(),
     EMAIL_FROM: z.string().min(3).optional(),
     SENTRY_DSN: z.string().optional(),
+    /** Trigger.dev secret key: needed to start scans from the app. */
+    TRIGGER_SECRET_KEY: z.string().min(1).optional(),
+    R2_ACCOUNT_ID: z.string().min(1).optional(),
+    R2_ACCESS_KEY_ID: z.string().min(1).optional(),
+    R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    R2_BUCKET: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
@@ -21,7 +27,11 @@ const schema = z
     if (env.MAILTRAP_TOKEN && !env.EMAIL_FROM) {
       ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "required with MAILTRAP_TOKEN, e.g. Mendwell <noreply@your-domain>" });
     }
+    const r2 = [env.R2_ACCOUNT_ID, env.R2_ACCESS_KEY_ID, env.R2_SECRET_ACCESS_KEY, env.R2_BUCKET];
+    if (r2.some(Boolean) && !r2.every(Boolean)) ctx.addIssue({ code: "custom", path: ["R2_BUCKET"], message: "set all four R2_* variables or none" });
     if (env.NODE_ENV === "production") {
+      if (!env.TRIGGER_SECRET_KEY) ctx.addIssue({ code: "custom", path: ["TRIGGER_SECRET_KEY"], message: "required in production" });
+      if (!r2.every(Boolean)) ctx.addIssue({ code: "custom", path: ["R2_ACCOUNT_ID"], message: "R2 is required in production" });
       if (!env.MAILTRAP_TOKEN) ctx.addIssue({ code: "custom", path: ["MAILTRAP_TOKEN"], message: "required in production" });
       if (!env.EMAIL_FROM) ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "required in production" });
       if (env.MAILTRAP_SANDBOX_INBOX_ID) {

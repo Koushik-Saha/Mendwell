@@ -59,6 +59,21 @@ const reads: Record<string, Read> = {
   "alerts.list": { run: (r, o) => r.alerts.list(o), target: (v) => v.alert.id },
   "reports.list": { run: (r, o) => r.reports.list(o), target: (v) => v.report.id },
   "reports.get": { run: (r, o, v) => r.reports.get(o, v.report.id), target: (v) => v.report.id },
+  "scanRuns.latest": { run: (r, o, v) => r.scanRuns.latest(o, v.site.id), target: (v) => v.scan.id },
+  "scanRuns.active": { run: (r, o, v) => r.scanRuns.active(o, v.site.id), target: (v) => v.scan.id },
+  "issueRecords.forReconcile": { run: (r, o, v) => r.issueRecords.forReconcile(o, v.site.id), target: (v) => v.issue.id },
+  "issueRecords.openCountsBySite": {
+    run: (r, o) => r.issueRecords.openCountsBySite(o),
+    target: (v) => v.site.id,
+    key: (row) => row.siteId,
+  },
+  "alertRecords.openOfType": { run: (r, o, v) => r.alertRecords.openOfType(o, v.site.id, "ssl"), target: (v) => v.alert.id },
+  "uptime.recent": { run: (r, o, v) => r.uptime.recent(o, v.site.id), target: (v) => v.site.id, key: (row) => row.siteId },
+  "teamContacts.emails": {
+    run: async (r, o) => (await r.teamContacts.emails(o, ["owner"])).map((email) => ({ email })),
+    target: (v) => v.user.email,
+    key: (row) => row.email,
+  },
 };
 
 describe.each(Object.entries(reads))("%s", (_name, read) => {
@@ -86,10 +101,24 @@ describe("writes scoped to the wrong org change nothing", () => {
     "sites.setConnectorSecret": (r) => r.sites.setConnectorSecret(b.orgId, a.site.id, "v1:k:x:y:z"),
     "sites.getConnectorSecret": (r) => r.sites.getConnectorSecret(b.orgId, a.site.id),
     "alerts.acknowledge": (r) => r.alerts.acknowledge(b.orgId, a.alert.id),
+    "scanRuns.start": (r) => r.scanRuns.start(b.orgId, a.scan.id),
+    "scanRuns.byRunId": async (r) => {
+      await r.scanRuns.setRunId(a.orgId, a.scan.id, "run_isolation");
+      return r.scanRuns.byRunId(b.orgId, "run_isolation");
+    },
+    "scanRuns.finish": (r) => r.scanRuns.finish(b.orgId, a.scan.id, { status: "failed", workerSeconds: 1 }),
   };
 
   it.each(Object.entries(writes))("%s returns null", async (_name, write) => {
     expect(await write(repos)).toBeNull();
+  });
+
+  it("scoped bulk writes skip another org's rows", async () => {
+    await repos.issueRecords.resolve(b.orgId, [a.issue.id]);
+    expect((await repos.issues.get(a.orgId, a.issue.id))?.status).toBe("open");
+    expect(await repos.alertRecords.resolve(b.orgId, [a.alert.id])).toEqual([]);
+    await repos.scanRuns.progress(b.orgId, a.scan.id, { phase: "crawling", pagesDone: 99 });
+    expect((await repos.scans.get(a.orgId, a.scan.id))?.progress).not.toMatchObject({ pagesDone: 99 });
   });
 
   it("left org A's rows untouched", async () => {

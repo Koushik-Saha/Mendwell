@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./testing": "./src/testing.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./storage": "./src/storage.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -17,11 +18,13 @@
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "studio": "drizzle-kit studio",
-    "check": "drizzle-kit check"
+    "check": "drizzle-kit check",
+    "seed:site": "node scripts/dev-seed-site.mjs"
   },
   "dependencies": {
     "@mendwell/core": "workspace:*",
     "@neondatabase/serverless": "^1.1.0",
+    "aws4fetch": "^1.0.20",
     "drizzle-orm": "^0.45.3"
   },
   "devDependencies": {

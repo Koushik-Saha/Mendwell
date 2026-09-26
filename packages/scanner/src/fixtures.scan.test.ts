@@ -160,6 +160,23 @@ describe("issue shape", () => {
   }, 120_000);
 });
 
+describe("progress", () => {
+  it("reports checking, then each crawled page against the cap", async () => {
+    const seen: string[] = [];
+    await scanSite({
+      siteId: "progress",
+      url: `${base}/clean/`,
+      botInfoUrl: "https://mendwell.test/bot",
+      browser,
+      pageCap: 7,
+      net: { testAllow: { addresses: ["127.0.0.1"], ports: [port] } },
+      screenshots: false,
+      onProgress: (p) => void seen.push(`${p.phase}:${p.pagesDone}/${p.pageCap}`),
+    });
+    expect(seen).toEqual(["checking:0/7", "crawling:0/7", "crawling:1/7", "crawling:2/7"]);
+  }, 60_000);
+});
+
 describe("SSRF guard inside the browser", () => {
   it("won't scan a site whose address isn't allowed, even for tests", async () => {
     const result = await scanSite({

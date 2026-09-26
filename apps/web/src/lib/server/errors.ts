@@ -13,6 +13,8 @@ export type ErrorCode =
   | "conflict"
   | "already_member"
   | "invalid_code"
+  | "site_unverified"
+  | "scans_unavailable"
   | "internal_error";
 
 /** An error that is safe to show to the client as `{ error: { code, message } }`. */
