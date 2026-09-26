@@ -38,6 +38,8 @@ const imgTags = (body: string) => [...body.matchAll(/<img\b[^>]*>/g)].map((m) =>
 const hasAlt = (tag: string) => /\balt\s*=/.test(tag);
 const title = (body: string) => /<title>([^<]*)<\/title>/.exec(body)?.[1];
 const hasMetaDescription = (body: string) => /<meta\s+name="description"\s+content="[^"]+"/.test(body);
+const hasAllOg = (body: string) =>
+  ["og:title", "og:description", "og:image"].every((p) => new RegExp(`<meta\\s+property="${p}"\\s+content="[^"]+"`).test(body));
 const hasLang = (body: string) => /<html\b[^>]*\blang="[^"]+"/.test(body);
 const internalHrefs = (body: string) =>
   [...body.matchAll(/<a\b[^>]*href="(\/[^"]*)"/g)].map((m) => m[1]).filter((h): h is string => Boolean(h));
@@ -75,7 +77,7 @@ describe("manifest matches the planted HTML", () => {
   it.each(all.map(([site, i]) => [i.id, site, i] as const))("%s is present", async (_id, site, issue) => {
     const body = page(issue.page);
     switch (issue.check) {
-      case "img-alt-missing": {
+      case "image-alt": {
         const src = /src=\\?"([^"\\]+)/.exec(issue.target)?.[1];
         const tag = imgTags(body).find((t) => t.includes(`src="${src}"`));
         expect(tag, issue.target).toBeDefined();
@@ -85,12 +87,15 @@ describe("manifest matches the planted HTML", () => {
       case "meta-description-missing":
         expect(hasMetaDescription(body)).toBe(false);
         break;
-      case "html-lang-missing":
+      case "html-has-lang":
         expect(hasLang(body)).toBe(false);
         break;
-      case "title-duplicate":
+      case "meta-title-duplicate":
         for (const other of issue.duplicateOf ?? []) expect(title(page(other))).toBe(title(body));
         expect(title(body)).toBe(issue.value);
+        break;
+      case "og-tags-missing":
+        expect(hasAllOg(body)).toBe(false);
         break;
       case "link-broken-internal":
         expect(body).toContain(`href="${issue.href}"`);
@@ -133,14 +138,15 @@ describe("manifest is complete (nothing unplanted slips in)", () => {
     it(`${name}: every image without alt is listed`, () => {
       for (const p of site.pages) {
         const missing = imgTags(page(p)).filter((t) => !hasAlt(t));
-        expect(missing.length, p).toBe(listed("img-alt-missing", p).length);
+        expect(missing.length, p).toBe(listed("image-alt", p).length);
       }
     });
 
-    it(`${name}: every missing description and lang is listed`, () => {
+    it(`${name}: every missing description, lang and Open Graph set is listed`, () => {
       for (const p of site.pages) {
         expect(!hasMetaDescription(page(p)), p).toBe(listed("meta-description-missing", p).length === 1);
-        expect(!hasLang(page(p)), p).toBe(listed("html-lang-missing", p).length === 1);
+        expect(!hasLang(page(p)), p).toBe(listed("html-has-lang", p).length === 1);
+        expect(!hasAllOg(page(p)), p).toBe(listed("og-tags-missing", p).length === 1);
       }
     });
 
@@ -149,7 +155,7 @@ describe("manifest is complete (nothing unplanted slips in)", () => {
       for (const p of site.pages) byTitle.set(title(page(p)) ?? "", [...(byTitle.get(title(page(p)) ?? "") ?? []), p]);
       const dupes = [...byTitle.values()].filter((ps) => ps.length > 1).flat().sort();
       const fromManifest = issues
-        .filter((i) => i.check === "title-duplicate")
+        .filter((i) => i.check === "meta-title-duplicate")
         .flatMap((i) => [i.page, ...(i.duplicateOf ?? [])])
         .sort();
       expect(dupes).toEqual(fromManifest);

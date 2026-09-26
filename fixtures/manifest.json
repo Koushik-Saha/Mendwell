@@ -1,32 +1,129 @@
 {
-  "$comment": "Every planted issue in fixtures/sites. Keep in sync with README.md; fixtures.test.ts fails if this drifts from the HTML.",
+  "$comment": "Every planted issue in fixtures/sites, keyed by scanner rule id. Keep in sync with README.md; fixtures.test.ts fails if this drifts from the HTML, and packages/scanner's fixture test fails if the scanner misses one or reports anything else.",
   "baseUrl": "http://localhost:4000",
   "sites": {
     "clean": {
       "root": "/clean/",
       "description": "Control site. Passes every v1 check; used to catch false positives.",
-      "pages": ["/clean/", "/clean/about/"],
+      "pages": [
+        "/clean/",
+        "/clean/about/"
+      ],
       "protectedPaths": [],
       "issues": []
     },
     "messy": {
       "root": "/messy/",
       "description": "Small-business brochure site where every v1 check fires at least once.",
-      "pages": ["/messy/", "/messy/services/", "/messy/blog/"],
+      "pages": [
+        "/messy/",
+        "/messy/services/",
+        "/messy/blog/"
+      ],
       "protectedPaths": [],
       "issues": [
-        { "id": "messy-lang-home", "check": "html-lang-missing", "page": "/messy/", "target": "html" },
-        { "id": "messy-meta-home", "check": "meta-description-missing", "page": "/messy/", "target": "head" },
-        { "id": "messy-meta-blog", "check": "meta-description-missing", "page": "/messy/blog/", "target": "head" },
-        { "id": "messy-title-dup", "check": "title-duplicate", "page": "/messy/", "target": "title", "duplicateOf": ["/messy/services/"], "value": "Home" },
-        { "id": "messy-alt-logo", "check": "img-alt-missing", "page": "/messy/", "target": "img[src=\"/messy/img/logo.svg\"]" },
-        { "id": "messy-alt-team", "check": "img-alt-missing", "page": "/messy/", "target": "img[src=\"/messy/img/team.svg\"]" },
-        { "id": "messy-alt-van", "check": "img-alt-missing", "page": "/messy/", "target": "img[src=\"/messy/img/van.svg\"]" },
-        { "id": "messy-alt-boiler", "check": "img-alt-missing", "page": "/messy/services/", "target": "img[src=\"/messy/img/boiler.svg\"]" },
-        { "id": "messy-link-contact", "check": "link-broken-internal", "page": "/messy/", "target": "a[href=\"/messy/contact/\"]", "href": "/messy/contact/", "expectedStatus": 404 },
-        { "id": "messy-link-reviews", "check": "link-broken-external", "page": "/messy/", "target": "a[href=\"https://reviews.example.invalid/rivera-plumbing\"]", "href": "https://reviews.example.invalid/rivera-plumbing", "expectedStatus": "dns-failure" },
-        { "id": "messy-contrast-home", "check": "color-contrast", "page": "/messy/", "target": "p.faint", "foreground": "#b0b0b0", "background": "#ffffff" },
-        { "id": "messy-contrast-services", "check": "color-contrast", "page": "/messy/services/", "target": "p.faint", "foreground": "#b0b0b0", "background": "#ffffff" }
+        {
+          "id": "messy-lang-home",
+          "check": "html-has-lang",
+          "page": "/messy/",
+          "target": "html"
+        },
+        {
+          "id": "messy-meta-home",
+          "check": "meta-description-missing",
+          "page": "/messy/",
+          "target": "head"
+        },
+        {
+          "id": "messy-meta-blog",
+          "check": "meta-description-missing",
+          "page": "/messy/blog/",
+          "target": "head"
+        },
+        {
+          "id": "messy-title-dup",
+          "check": "meta-title-duplicate",
+          "page": "/messy/",
+          "target": "title",
+          "duplicateOf": [
+            "/messy/services/"
+          ],
+          "value": "Home"
+        },
+        {
+          "id": "messy-alt-logo",
+          "check": "image-alt",
+          "page": "/messy/",
+          "target": "img[src=\"/messy/img/logo.svg\"]"
+        },
+        {
+          "id": "messy-alt-team",
+          "check": "image-alt",
+          "page": "/messy/",
+          "target": "img[src=\"/messy/img/team.svg\"]"
+        },
+        {
+          "id": "messy-alt-van",
+          "check": "image-alt",
+          "page": "/messy/",
+          "target": "img[src=\"/messy/img/van.svg\"]"
+        },
+        {
+          "id": "messy-alt-boiler",
+          "check": "image-alt",
+          "page": "/messy/services/",
+          "target": "img[src=\"/messy/img/boiler.svg\"]"
+        },
+        {
+          "id": "messy-link-contact",
+          "check": "link-broken-internal",
+          "page": "/messy/",
+          "target": "a[href=\"/messy/contact/\"]",
+          "href": "/messy/contact/",
+          "expectedStatus": 404
+        },
+        {
+          "id": "messy-link-reviews",
+          "check": "link-broken-external",
+          "page": "/messy/",
+          "target": "a[href=\"https://reviews.example.invalid/rivera-plumbing\"]",
+          "href": "https://reviews.example.invalid/rivera-plumbing",
+          "expectedStatus": "dns-failure"
+        },
+        {
+          "id": "messy-contrast-home",
+          "check": "color-contrast",
+          "page": "/messy/",
+          "target": "p.faint",
+          "foreground": "#b0b0b0",
+          "background": "#ffffff"
+        },
+        {
+          "id": "messy-contrast-services",
+          "check": "color-contrast",
+          "page": "/messy/services/",
+          "target": "p.faint",
+          "foreground": "#b0b0b0",
+          "background": "#ffffff"
+        },
+        {
+          "id": "messy-og-home",
+          "check": "og-tags-missing",
+          "page": "/messy/",
+          "target": "head"
+        },
+        {
+          "id": "messy-og-services",
+          "check": "og-tags-missing",
+          "page": "/messy/services/",
+          "target": "head"
+        },
+        {
+          "id": "messy-og-blog",
+          "check": "og-tags-missing",
+          "page": "/messy/blog/",
+          "target": "head"
+        }
       ]
     },
     "woocommerce": {
@@ -40,21 +137,144 @@
         "/woocommerce/checkout/",
         "/woocommerce/my-account/"
       ],
-      "protectedPaths": ["/woocommerce/cart/", "/woocommerce/checkout/", "/woocommerce/my-account/"],
+      "protectedPaths": [
+        "/woocommerce/cart/",
+        "/woocommerce/checkout/",
+        "/woocommerce/my-account/"
+      ],
       "issues": [
-        { "id": "woo-meta-shop", "check": "meta-description-missing", "page": "/woocommerce/shop/", "target": "head" },
-        { "id": "woo-alt-shop-apron", "check": "img-alt-missing", "page": "/woocommerce/shop/", "target": "img[src=\"/woocommerce/img/apron.svg\"]" },
-        { "id": "woo-alt-shop-mug", "check": "img-alt-missing", "page": "/woocommerce/shop/", "target": "img[src=\"/woocommerce/img/mug.svg\"]" },
-        { "id": "woo-link-mug", "check": "link-broken-internal", "page": "/woocommerce/shop/", "target": "a[href=\"/woocommerce/product/stoneware-mug/\"]", "href": "/woocommerce/product/stoneware-mug/", "expectedStatus": 404 },
-        { "id": "woo-link-care", "check": "link-broken-external", "page": "/woocommerce/product/linen-apron/", "target": "a[href=\"https://care-guides.example.invalid/linen\"]", "href": "https://care-guides.example.invalid/linen", "expectedStatus": "dns-failure" },
-        { "id": "woo-contrast-stock", "check": "color-contrast", "page": "/woocommerce/product/linen-apron/", "target": "p.stock", "foreground": "#9a9a9a", "background": "#fdfdfd" },
-        { "id": "woo-meta-cart", "check": "meta-description-missing", "page": "/woocommerce/cart/", "target": "head", "protected": true },
-        { "id": "woo-alt-cart", "check": "img-alt-missing", "page": "/woocommerce/cart/", "target": "img[src=\"/woocommerce/img/apron.svg\"]", "protected": true },
-        { "id": "woo-meta-checkout", "check": "meta-description-missing", "page": "/woocommerce/checkout/", "target": "head", "protected": true },
-        { "id": "woo-alt-checkout", "check": "img-alt-missing", "page": "/woocommerce/checkout/", "target": "img[src=\"/woocommerce/img/card-logos.svg\"]", "protected": true },
-        { "id": "woo-contrast-checkout", "check": "color-contrast", "page": "/woocommerce/checkout/", "target": "p.fine-print", "foreground": "#9a9a9a", "background": "#fdfdfd", "protected": true },
-        { "id": "woo-meta-account", "check": "meta-description-missing", "page": "/woocommerce/my-account/", "target": "head", "protected": true },
-        { "id": "woo-alt-account", "check": "img-alt-missing", "page": "/woocommerce/my-account/", "target": "img[src=\"/woocommerce/img/avatar.svg\"]", "protected": true }
+        {
+          "id": "woo-meta-shop",
+          "check": "meta-description-missing",
+          "page": "/woocommerce/shop/",
+          "target": "head"
+        },
+        {
+          "id": "woo-alt-shop-apron",
+          "check": "image-alt",
+          "page": "/woocommerce/shop/",
+          "target": "img[src=\"/woocommerce/img/apron.svg\"]"
+        },
+        {
+          "id": "woo-alt-shop-mug",
+          "check": "image-alt",
+          "page": "/woocommerce/shop/",
+          "target": "img[src=\"/woocommerce/img/mug.svg\"]"
+        },
+        {
+          "id": "woo-link-mug",
+          "check": "link-broken-internal",
+          "page": "/woocommerce/shop/",
+          "target": "a[href=\"/woocommerce/product/stoneware-mug/\"]",
+          "href": "/woocommerce/product/stoneware-mug/",
+          "expectedStatus": 404
+        },
+        {
+          "id": "woo-link-care",
+          "check": "link-broken-external",
+          "page": "/woocommerce/product/linen-apron/",
+          "target": "a[href=\"https://care-guides.example.invalid/linen\"]",
+          "href": "https://care-guides.example.invalid/linen",
+          "expectedStatus": "dns-failure"
+        },
+        {
+          "id": "woo-contrast-stock",
+          "check": "color-contrast",
+          "page": "/woocommerce/product/linen-apron/",
+          "target": "p.stock",
+          "foreground": "#9a9a9a",
+          "background": "#fdfdfd"
+        },
+        {
+          "id": "woo-meta-cart",
+          "check": "meta-description-missing",
+          "page": "/woocommerce/cart/",
+          "target": "head",
+          "protected": true
+        },
+        {
+          "id": "woo-alt-cart",
+          "check": "image-alt",
+          "page": "/woocommerce/cart/",
+          "target": "img[src=\"/woocommerce/img/apron.svg\"]",
+          "protected": true
+        },
+        {
+          "id": "woo-meta-checkout",
+          "check": "meta-description-missing",
+          "page": "/woocommerce/checkout/",
+          "target": "head",
+          "protected": true
+        },
+        {
+          "id": "woo-alt-checkout",
+          "check": "image-alt",
+          "page": "/woocommerce/checkout/",
+          "target": "img[src=\"/woocommerce/img/card-logos.svg\"]",
+          "protected": true
+        },
+        {
+          "id": "woo-contrast-checkout",
+          "check": "color-contrast",
+          "page": "/woocommerce/checkout/",
+          "target": "p.fine-print",
+          "foreground": "#9a9a9a",
+          "background": "#fdfdfd",
+          "protected": true
+        },
+        {
+          "id": "woo-meta-account",
+          "check": "meta-description-missing",
+          "page": "/woocommerce/my-account/",
+          "target": "head",
+          "protected": true
+        },
+        {
+          "id": "woo-alt-account",
+          "check": "image-alt",
+          "page": "/woocommerce/my-account/",
+          "target": "img[src=\"/woocommerce/img/avatar.svg\"]",
+          "protected": true
+        },
+        {
+          "id": "woo-og-home",
+          "check": "og-tags-missing",
+          "page": "/woocommerce/",
+          "target": "head"
+        },
+        {
+          "id": "woo-og-shop",
+          "check": "og-tags-missing",
+          "page": "/woocommerce/shop/",
+          "target": "head"
+        },
+        {
+          "id": "woo-og-product",
+          "check": "og-tags-missing",
+          "page": "/woocommerce/product/linen-apron/",
+          "target": "head"
+        },
+        {
+          "id": "woo-og-cart",
+          "check": "og-tags-missing",
+          "page": "/woocommerce/cart/",
+          "target": "head",
+          "protected": true
+        },
+        {
+          "id": "woo-og-checkout",
+          "check": "og-tags-missing",
+          "page": "/woocommerce/checkout/",
+          "target": "head",
+          "protected": true
+        },
+        {
+          "id": "woo-og-account",
+          "check": "og-tags-missing",
+          "page": "/woocommerce/my-account/",
+          "target": "head",
+          "protected": true
+        }
       ]
     }
   }

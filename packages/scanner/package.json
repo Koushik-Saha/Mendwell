@@ -11,5 +11,13 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@mendwell/core": "workspace:*",
+    "playwright": "1.63.0"
+  },
+  "devDependencies": {
+    "@mendwell/fixtures": "workspace:*"
   }
 }

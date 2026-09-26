@@ -22,30 +22,31 @@ pnpm fixtures:serve        # http://localhost:4000
 
 ## Planted issues
 
-Check IDs are the ones used in `manifest.json`.
+Check IDs are the scanner's rule ids, as used in `manifest.json`. `packages/scanner`'s fixture test scans all three sites and fails if any planted issue is missed or anything else is reported.
 
 ### clean: none
 
 Deliberate non-issues that must **not** be flagged:
 - `/clean/`: `img/divider.svg` has `alt=""`, which is correct for a decorative image.
-- Every page has a unique title, a meta description and `lang="en"`. All links resolve.
+- Every page has a unique title, a meta description, Open Graph title/description/image and `lang="en"`. All links resolve.
 
 ### messy
 
 | ID | Check | Page | Where | Detail |
 |---|---|---|---|---|
-| messy-lang-home | html-lang-missing | `/messy/` | `<html>` | No `lang` attribute |
+| messy-lang-home | html-has-lang | `/messy/` | `<html>` | No `lang` attribute |
 | messy-meta-home | meta-description-missing | `/messy/` | `<head>` | |
 | messy-meta-blog | meta-description-missing | `/messy/blog/` | `<head>` | |
-| messy-title-dup | title-duplicate | `/messy/` + `/messy/services/` | `<title>` | Both are "Home" |
-| messy-alt-logo | img-alt-missing | `/messy/` | `img/logo.svg` | Header logo, so the fix is alt text that names the business |
-| messy-alt-team | img-alt-missing | `/messy/` | `img/team.svg` | |
-| messy-alt-van | img-alt-missing | `/messy/` | `img/van.svg` | |
-| messy-alt-boiler | img-alt-missing | `/messy/services/` | `img/boiler.svg` | |
+| messy-title-dup | meta-title-duplicate | `/messy/` + `/messy/services/` | `<title>` | Both are "Home" |
+| messy-alt-logo | image-alt | `/messy/` | `img/logo.svg` | Header logo, so the fix is alt text that names the business |
+| messy-alt-team | image-alt | `/messy/` | `img/team.svg` | |
+| messy-alt-van | image-alt | `/messy/` | `img/van.svg` | |
+| messy-alt-boiler | image-alt | `/messy/services/` | `img/boiler.svg` | |
 | messy-link-contact | link-broken-internal | `/messy/` | `a[href="/messy/contact/"]` | 404. Linked twice (nav + body), so it should be reported once |
 | messy-link-reviews | link-broken-external | `/messy/` | `https://reviews.example.invalid/rivera-plumbing` | DNS failure |
 | messy-contrast-home | color-contrast | `/messy/` | `p.faint` | `#b0b0b0` on `#ffffff` = 2.14:1 |
 | messy-contrast-services | color-contrast | `/messy/services/` | `p.faint` | Same rule as above. It's a theme-level issue, so "alert" and not fixable |
+| messy-og-home, -services, -blog | og-tags-missing | every page | `<head>` | No og:title, og:description or og:image |
 
 ### woocommerce
 
@@ -54,20 +55,22 @@ Protected pages: `/woocommerce/cart/`, `/woocommerce/checkout/`, `/woocommerce/m
 | ID | Check | Page | Where | Detail |
 |---|---|---|---|---|
 | woo-meta-shop | meta-description-missing | `/woocommerce/shop/` | `<head>` | |
-| woo-alt-shop-apron | img-alt-missing | `/woocommerce/shop/` | `img/apron.svg` | Inside a product link that has text, so decorative (`alt=""`) is a valid proposal |
-| woo-alt-shop-mug | img-alt-missing | `/woocommerce/shop/` | `img/mug.svg` | Same pattern as above |
+| woo-alt-shop-apron | image-alt | `/woocommerce/shop/` | `img/apron.svg` | Inside a product link that has text, so decorative (`alt=""`) is a valid proposal |
+| woo-alt-shop-mug | image-alt | `/woocommerce/shop/` | `img/mug.svg` | Same pattern as above |
 | woo-link-mug | link-broken-internal | `/woocommerce/shop/` | `a[href="/woocommerce/product/stoneware-mug/"]` | 404. Deleted product |
 | woo-link-care | link-broken-external | `/woocommerce/product/linen-apron/` | `https://care-guides.example.invalid/linen` | DNS failure |
 | woo-contrast-stock | color-contrast | `/woocommerce/product/linen-apron/` | `p.stock` | `#9a9a9a` on `#fdfdfd` = 2.73:1 |
 | woo-meta-cart | meta-description-missing | `/woocommerce/cart/` | `<head>` | **Protected** |
-| woo-alt-cart | img-alt-missing | `/woocommerce/cart/` | `img/apron.svg` | **Protected** |
+| woo-alt-cart | image-alt | `/woocommerce/cart/` | `img/apron.svg` | **Protected** |
 | woo-meta-checkout | meta-description-missing | `/woocommerce/checkout/` | `<head>` | **Protected** |
-| woo-alt-checkout | img-alt-missing | `/woocommerce/checkout/` | `img/card-logos.svg` | **Protected** |
+| woo-alt-checkout | image-alt | `/woocommerce/checkout/` | `img/card-logos.svg` | **Protected** |
 | woo-contrast-checkout | color-contrast | `/woocommerce/checkout/` | `p.fine-print` | **Protected**. Same `#9a9a9a` rule |
 | woo-meta-account | meta-description-missing | `/woocommerce/my-account/` | `<head>` | **Protected** |
-| woo-alt-account | img-alt-missing | `/woocommerce/my-account/` | `img/avatar.svg` | **Protected** |
+| woo-alt-account | image-alt | `/woocommerce/my-account/` | `img/avatar.svg` | **Protected** |
+| woo-og-home, -shop, -product | og-tags-missing | `/`, `/shop/`, `/product/linen-apron/` | `<head>` | No Open Graph tags |
+| woo-og-cart, -checkout, -account | og-tags-missing | cart, checkout, my-account | `<head>` | **Protected** |
 
-Totals: messy 12, woocommerce 13 (7 on protected pages), clean 0.
+Totals: messy 15, woocommerce 19 (10 on protected pages), clean 0.
 
 ## Adding an issue
 

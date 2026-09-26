@@ -5,7 +5,10 @@
   "description": "Static WordPress-like sites with known, documented issues for scanner and verifier tests.",
   "type": "module",
   "exports": {
-    ".": "./serve.mjs",
+    ".": {
+      "types": "./serve.d.mts",
+      "default": "./serve.mjs"
+    },
     "./manifest.json": "./manifest.json"
   },
   "scripts": {
