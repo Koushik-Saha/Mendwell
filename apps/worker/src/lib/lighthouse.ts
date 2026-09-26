@@ -2,6 +2,7 @@ import { isProtectedPage, normalizeUrl } from "@mendwell/core";
 import type { CrawledPage } from "@mendwell/scanner";
 import * as chromeLauncher from "chrome-launcher";
 import lighthouse from "lighthouse";
+import { logger } from "@trigger.dev/sdk";
 import { chromium } from "playwright";
 import { proxyChromeFlags, type EgressProxy } from "./egress-proxy";
 
@@ -38,6 +39,26 @@ export function pickLighthousePages(pages: CrawledPage[], homeUrl: string, prote
   return [...(ok.has(home) ? [ok.get(home) as string] : []), ...top];
 }
 
+/**
+ * Launch Chrome sandboxed where the OS allows it. Containers running as root, and hosts that block
+ * unprivileged user namespaces (e.g. Ubuntu 24.04 CI runners), can't start the sandbox; there we
+ * fall back to --no-sandbox, as Playwright does by default. Network access is confined by the
+ * egress proxy either way.
+ */
+async function launchChrome(chromePath: string, extraFlags: string[]) {
+  const base = ["--headless=new", "--disable-gpu", "--disable-dev-shm-usage", ...extraFlags];
+  const runningAsRoot = typeof process.getuid === "function" && process.getuid() === 0;
+  const launch = (sandbox: boolean) =>
+    chromeLauncher.launch({ chromePath, chromeFlags: sandbox ? base : [...base, "--no-sandbox"], logLevel: "silent" });
+  if (runningAsRoot) return launch(false);
+  try {
+    return await launch(true);
+  } catch {
+    logger.warn("lighthouse.chrome.sandbox_unavailable: retrying without the Chrome sandbox");
+    return launch(false);
+  }
+}
+
 const score = (value: number | null | undefined) => (typeof value === "number" ? Math.round(value * 100) : null);
 
 /**
@@ -47,18 +68,7 @@ const score = (value: number | null | undefined) => (typeof value === "number" ?
 export async function runLighthouse(urls: string[], options: { proxy: EgressProxy; chromePath?: string }): Promise<LighthouseSummary> {
   const summary: LighthouseSummary = { ranAt: new Date().toISOString(), pages: [], errors: [] };
   if (urls.length === 0) return summary;
-  const runningAsRoot = typeof process.getuid === "function" && process.getuid() === 0;
-  const chrome = await chromeLauncher.launch({
-    chromePath: options.chromePath ?? process.env.CHROME_PATH ?? chromium.executablePath(),
-    chromeFlags: [
-      "--headless=new",
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-      ...(runningAsRoot ? ["--no-sandbox"] : []),
-      ...proxyChromeFlags(options.proxy),
-    ],
-    logLevel: "silent",
-  });
+  const chrome = await launchChrome(options.chromePath ?? process.env.CHROME_PATH ?? chromium.executablePath(), proxyChromeFlags(options.proxy));
   try {
     for (const url of urls) {
       try {

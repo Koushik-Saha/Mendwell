@@ -1,9 +1,11 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { CrawledPage } from "@mendwell/scanner";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { startEgressProxy, type EgressProxy } from "./egress-proxy";
 import { pickLighthousePages, runLighthouse } from "./lighthouse";
+
+vi.mock("@trigger.dev/sdk", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 const crawled = (path: string, links: string[], over: Partial<CrawledPage> = {}): CrawledPage => ({
   url: `https://site.test${path}`,
