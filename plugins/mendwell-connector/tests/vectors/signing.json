@@ -1,0 +1,70 @@
+{
+  "$comment": "Shared by the plugin's PHPUnit tests and packages/core connectorClient tests. Generated independently with Node crypto; never edit by hand.",
+  "secret": "4f1c0b8e9d2a7e6c5b3a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c",
+  "vectors": [
+    {
+      "name": "GET status, no body",
+      "method": "GET",
+      "route": "/mendwell/v1/status",
+      "query": {},
+      "timestamp": "1790000000",
+      "nonce": "n0nce-AAAAAAAAAAAAAAAA",
+      "body": "",
+      "path": "/mendwell/v1/status",
+      "canonical": "GET\n/mendwell/v1/status\n1790000000\nn0nce-AAAAAAAAAAAAAAAA\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "eff848c01a49baeba2a8dd3d678812e25c71c17cc8c15f75f5ac4e3388ff8b5e"
+    },
+    {
+      "name": "GET with query, sorted and encoded",
+      "method": "GET",
+      "route": "/mendwell/v1/resolve-path",
+      "query": {
+        "path": "/old page/?a=b&c",
+        "z": "1",
+        "a": "x y"
+      },
+      "timestamp": "1790000001",
+      "nonce": "n0nce_BBBBBBBBBBBBBBBB",
+      "body": "",
+      "path": "/mendwell/v1/resolve-path?a=x%20y&path=%2Fold%20page%2F%3Fa%3Db%26c&z=1",
+      "canonical": "GET\n/mendwell/v1/resolve-path?a=x%20y&path=%2Fold%20page%2F%3Fa%3Db%26c&z=1\n1790000001\nn0nce_BBBBBBBBBBBBBBBB\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "ad3af73adfff6f1a302481577ff3154ffc01c491a0bfd8a0492254e663879fca"
+    },
+    {
+      "name": "POST fix/alt JSON body",
+      "method": "POST",
+      "route": "/mendwell/v1/fix/alt",
+      "query": {},
+      "timestamp": "1790000002",
+      "nonce": "CCCCCCCCCCCCCCCCCCCCCCCC",
+      "body": "{\"fixId\":\"fix_123\",\"attachmentId\":42,\"value\":\"A bookbinder stitching a spine\",\"expectedCurrent\":\"\"}",
+      "path": "/mendwell/v1/fix/alt",
+      "canonical": "POST\n/mendwell/v1/fix/alt\n1790000002\nCCCCCCCCCCCCCCCCCCCCCCCC\nf6d4d3cb0ef0d493406b6eb4916eaeb3cbc82eaeb82b710f5bf2486b75f10101",
+      "signature": "d0a537278d7333ef90e81985d3ef9127add78c6477ba6dfb90a9fad22fb5940f"
+    },
+    {
+      "name": "POST with unicode body",
+      "method": "POST",
+      "route": "/mendwell/v1/fix/meta",
+      "query": {},
+      "timestamp": "1790000003",
+      "nonce": "DDDDDDDDDDDDDDDDDDDDDDDD",
+      "body": "{\"fixId\":\"fix_é\",\"postId\":7,\"title\":\"Café — menu ✓\",\"expectedCurrent\":{}}",
+      "path": "/mendwell/v1/fix/meta",
+      "canonical": "POST\n/mendwell/v1/fix/meta\n1790000003\nDDDDDDDDDDDDDDDDDDDDDDDD\nfcab758fafbe3173845c199e035ddf5c97408db6d309fc28c3478d16bc5e779b",
+      "signature": "e4d5a1bc4f3f498ad150cbc7c621f4245f1207c42c92d7a8e07ceb13d40cd57c"
+    },
+    {
+      "name": "lowercase method is uppercased",
+      "method": "post",
+      "route": "/mendwell/v1/pause",
+      "query": {},
+      "timestamp": "1790000004",
+      "nonce": "EEEEEEEEEEEEEEEEEEEEEEEE",
+      "body": "{}",
+      "path": "/mendwell/v1/pause",
+      "canonical": "POST\n/mendwell/v1/pause\n1790000004\nEEEEEEEEEEEEEEEEEEEEEEEE\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "signature": "ba09517c4734ce89c19526860b50db9eea47d76d44692ffe6ecc4ddee42a2704"
+    }
+  ]
+}

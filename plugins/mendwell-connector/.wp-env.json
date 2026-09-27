@@ -1,0 +1,13 @@
+{
+  "core": "WordPress/WordPress#6.2",
+  "phpVersion": "7.4",
+  "plugins": ["."],
+  "config": {
+    "MENDWELL_ALLOW_HTTP": true
+  },
+  "env": {
+    "tests": {
+      "config": { "MENDWELL_ALLOW_HTTP": true }
+    }
+  }
+}

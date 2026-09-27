@@ -68,7 +68,9 @@ export async function runAxe(page: Page, pageUrl: string, options: { screenshots
       const tag = /^<([a-z0-9-]+)/i.exec(node.html)?.[1] ?? "";
       if (options.screenshots !== false && simple && !NO_SCREENSHOT.test(tag) && shots < (options.maxScreenshots ?? 25)) {
         try {
-          finding.screenshot = await page.locator(selector).first().screenshot({ timeout: 3000, animations: "disabled", caret: "hide" });
+          // Normally tens of ms; the generous budget only matters when a heavy page (or a loaded
+          // worker) stalls, and screenshots are the evidence users see. Capped at 25 per page.
+          finding.screenshot = await page.locator(selector).first().screenshot({ timeout: 10_000, animations: "disabled", caret: "hide" });
           shots++;
         } catch {
           // Hidden or zero-size elements can't be photographed; the text evidence still stands.

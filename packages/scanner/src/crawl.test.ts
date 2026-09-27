@@ -144,12 +144,17 @@ describe("crawl", () => {
     await run({ robots: `User-agent: *\nCrawl-delay: ${delayMs / 1000}\n` });
     const docs = hits.filter((h) => /^\/site\/(p\d|from-sitemap)?\/?$/.test(h.path)).map((h) => h.at);
     expect(docs.length).toBeGreaterThan(3);
-    // Arrival times at a server in this same (busy) process jitter, which stretches one gap and
-    // shrinks the next by the same amount. So assert the rate over the whole crawl, plus a floor
-    // on every gap that any real pacing bug (requests bunched together) would break.
+    // Timestamps come from a server sharing this process's event loop: a GC pause or CPU
+    // starvation holds both of two queued requests and releases them together (e.g. gaps of
+    // 1183 ms then 2 ms). A stall can only delay the crawler's timers, never shorten real spacing.
+    // So assert what a pacing bug would break but one stall can't: the overall rate, the typical
+    // gap, and at most one bunched pair.
+    const gaps = docs.slice(1).map((t, i) => t - (docs[i] ?? 0));
     const span = (docs.at(-1) ?? 0) - (docs[0] ?? 0);
+    const median = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] ?? 0;
     expect(span).toBeGreaterThanOrEqual((docs.length - 1) * delayMs - 100);
-    for (let i = 1; i < docs.length; i++) expect((docs[i] ?? 0) - (docs[i - 1] ?? 0)).toBeGreaterThanOrEqual(delayMs / 2);
+    expect(median).toBeGreaterThanOrEqual(delayMs * 0.8);
+    expect(gaps.filter((g) => g < delayMs / 2).length).toBeLessThanOrEqual(1);
   }, 60_000);
 
   it("identifies as MendwellBot on every request, including robots.txt and subresources", async () => {

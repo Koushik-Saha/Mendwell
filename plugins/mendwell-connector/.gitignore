@@ -1,0 +1,5 @@
+vendor/
+dist/
+.wp-env*
+!.wp-env.json
+composer.lock

@@ -1,0 +1,16 @@
+{
+  "name": "mendwell-connector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WordPress plugin (PHP 7.4+/WP 6.2+). Node is only used for wp-env and the zip build.",
+  "scripts": {
+    "wp-env": "wp-env",
+    "composer:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/mendwell-connector composer install --no-interaction --no-progress",
+    "test": "pnpm run composer:install && wp-env run tests-cli --env-cwd=wp-content/plugins/mendwell-connector vendor/bin/phpunit",
+    "lint:php": "node bin/php-lint.mjs",
+    "build": "node bin/build-zip.mjs"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^11.16.0"
+  }
+}

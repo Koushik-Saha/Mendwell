@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - fixtures
+  - plugins/*
 
 # pnpm blocks dependency install scripts by default. Allow only what we need (SECURITY.md T12).
 allowBuilds:
@@ -10,3 +11,5 @@ allowBuilds:
   "@sentry/cli": false
   # Downloads Depot's builder for `trigger deploy`. Enable when we first deploy the worker.
   "@depot/cli": false
+  # Native file-locking prebuilt pulled in by @wordpress/env; wp-env runs without it.
+  fs-ext-extra-prebuilt: false
