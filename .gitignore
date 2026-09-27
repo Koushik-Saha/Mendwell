@@ -17,3 +17,4 @@ playwright-report/
 *.md
 !README.md
 .dev-outbox/
+apps/web/public/downloads/

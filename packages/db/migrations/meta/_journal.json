@@ -15,6 +15,13 @@
       "when": 1790457528149,
       "tag": "0001_scan_pipeline",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790468281115,
+      "tag": "0002_connector_rest_mode",
+      "breakpoints": true
     }
   ]
 }

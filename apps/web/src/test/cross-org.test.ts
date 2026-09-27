@@ -145,6 +145,22 @@ const cases: Record<RouteKey, Case> = {
     params: (s) => ({ id: s.a.site.id, issueId: s.a.issue.id }),
     controlStatus: 200,
   },
+  "POST /api/sites": {
+    kind: "scoped-write",
+    body: () => ({ url: "https://cross-org-probe.example" }),
+    controlStatus: 201,
+    inA: async (h, s) => (await h.db.select().from(sites).where(and(eq(sites.orgId, s.a.orgId), eq(sites.url, "https://cross-org-probe.example/")))).length,
+  },
+  "PATCH /api/sites/[id]": { kind: "resource", params: (s) => ({ id: s.a.site.id }), body: () => ({ dailyWriteCap: 5 }), controlStatus: 200 },
+  "POST /api/sites/[id]/pairing-code": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 201 },
+  "DELETE /api/sites/[id]/connector": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 204 },
+  "POST /api/sites/[id]/pause": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
+  "POST /api/sites/[id]/resume": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
+  "POST /api/connector/pair": {
+    kind: "exempt",
+    reason:
+      "Called by the WordPress plugin with no session: the one-time code is the credential and can only pair the site it was issued for (connector-api.test.ts).",
+  },
   "POST /api/two-factor/enable": { kind: "exempt", reason: "User-scoped: changes only the caller's own 2FA. No org or resource id." },
   "POST /api/two-factor/verify": { kind: "exempt", reason: "User-scoped: verifies the caller's own code. No org or resource id." },
   "POST /api/two-factor/disable": { kind: "exempt", reason: "User-scoped: changes only the caller's own 2FA. No org or resource id." },

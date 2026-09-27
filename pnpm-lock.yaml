@@ -208,6 +208,9 @@ importers:
       '@mendwell/email':
         specifier: workspace:*
         version: link:../../packages/email
+      '@mendwell/scanner':
+        specifier: workspace:*
+        version: link:../../packages/scanner
       '@mendwell/ui-preset':
         specifier: workspace:*
         version: link:../../packages/ui-preset

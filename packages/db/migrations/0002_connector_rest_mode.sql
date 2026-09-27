@@ -1,0 +1,1 @@
+ALTER TABLE "sites" ADD COLUMN "connector_rest_mode" text DEFAULT 'pretty' NOT NULL;

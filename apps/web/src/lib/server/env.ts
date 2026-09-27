@@ -13,6 +13,14 @@ const schema = z
     MAILTRAP_SANDBOX_INBOX_ID: z.string().regex(/^\d+$/, "must be a numeric Mailtrap inbox id").optional(),
     EMAIL_FROM: z.string().min(3).optional(),
     SENTRY_DSN: z.string().optional(),
+    /** JSON {"kid": "<base64 32-byte key>"}: encrypts connector secrets (SECURITY.md T2). */
+    ENCRYPTION_KEYS: z.string().min(2).optional(),
+    ENCRYPTION_ACTIVE_KID: z.string().min(1).optional(),
+    /**
+     * DEVELOPMENT ONLY: "127.0.0.1:8888,127.0.0.1:8889" lets the app reach a local wp-env WordPress
+     * past the SSRF guard. Refused in production.
+     */
+    DEV_NET_ALLOW: z.string().regex(/^(\d{1,3}(\.\d{1,3}){3}:\d{1,5})(,\d{1,3}(\.\d{1,3}){3}:\d{1,5})*$/, "must be ip:port[,ip:port]").optional(),
     /** Trigger.dev secret key: needed to start scans from the app. */
     TRIGGER_SECRET_KEY: z.string().min(1).optional(),
     R2_ACCOUNT_ID: z.string().min(1).optional(),
@@ -29,7 +37,12 @@ const schema = z
     }
     const r2 = [env.R2_ACCOUNT_ID, env.R2_ACCESS_KEY_ID, env.R2_SECRET_ACCESS_KEY, env.R2_BUCKET];
     if (r2.some(Boolean) && !r2.every(Boolean)) ctx.addIssue({ code: "custom", path: ["R2_BUCKET"], message: "set all four R2_* variables or none" });
+    if (Boolean(env.ENCRYPTION_KEYS) !== Boolean(env.ENCRYPTION_ACTIVE_KID)) {
+      ctx.addIssue({ code: "custom", path: ["ENCRYPTION_ACTIVE_KID"], message: "set ENCRYPTION_KEYS and ENCRYPTION_ACTIVE_KID together" });
+    }
     if (env.NODE_ENV === "production") {
+      if (env.DEV_NET_ALLOW) ctx.addIssue({ code: "custom", path: ["DEV_NET_ALLOW"], message: "must be unset in production" });
+      if (!env.ENCRYPTION_KEYS) ctx.addIssue({ code: "custom", path: ["ENCRYPTION_KEYS"], message: "required in production" });
       if (!env.TRIGGER_SECRET_KEY) ctx.addIssue({ code: "custom", path: ["TRIGGER_SECRET_KEY"], message: "required in production" });
       if (!r2.every(Boolean)) ctx.addIssue({ code: "custom", path: ["R2_ACCOUNT_ID"], message: "R2 is required in production" });
       if (!env.MAILTRAP_TOKEN) ctx.addIssue({ code: "custom", path: ["MAILTRAP_TOKEN"], message: "required in production" });

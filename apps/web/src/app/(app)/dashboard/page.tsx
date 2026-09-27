@@ -1,9 +1,11 @@
+import { hasRole } from "@mendwell/core";
 import { Globe } from "lucide-react";
 import type { Metadata } from "next";
 import { AddSiteButton } from "@/components/add-site-button";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status";
+import { getOrgPageContext } from "@/lib/server/page-context";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -19,12 +21,13 @@ const labels = [
   { status: "alert", label: "Needs attention", body: "Rolled back, or something we can't fix for you." },
 ] as const;
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const ctx = await getOrgPageContext("/dashboard");
   return (
     <div className="space-y-8">
       <PageHeader title="Dashboard" description="Health across your sites, and anything that needs you." />
 
-      <EmptyState icon={Globe} title="Connect your first WordPress site" action={<AddSiteButton id="dashboard-add-site-note" />}>
+      <EmptyState icon={Globe} title="Connect your first WordPress site" action={<AddSiteButton id="dashboard-add-site-note" canAdd={hasRole(ctx.role, "admin")} />}>
         <p>
           Mendwell finds common accessibility, SEO and link issues, fixes the ones you approve, then re-checks each fix
           on your live site. If a fix doesn&apos;t hold, it&apos;s rolled back.

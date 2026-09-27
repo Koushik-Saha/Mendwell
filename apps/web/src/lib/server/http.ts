@@ -38,10 +38,17 @@ function assertSameOrigin(req: Request) {
  */
 export function route<P extends Record<string, string> = Record<string, never>>(
   handler: (req: NextRequest, ctx: RouteContext<P>) => Promise<Response>,
+  options: {
+    /**
+     * Machine-to-machine endpoints (the WordPress plugin pairing) that carry no cookies and no
+     * session. The browser origin check doesn't apply; they authenticate by their own secret.
+     */
+    public?: boolean;
+  } = {},
 ) {
   return async (req: NextRequest, ctx: RouteContext<P>): Promise<Response> => {
     try {
-      assertSameOrigin(req);
+      if (!options.public) assertSameOrigin(req);
       return await handler(req, ctx);
     } catch (error) {
       if (error instanceof AppError) return jsonError(error);

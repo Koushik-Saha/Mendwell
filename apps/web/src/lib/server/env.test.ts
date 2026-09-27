@@ -10,7 +10,8 @@ const base = {
 const prod = { ...base, NODE_ENV: "production", BETTER_AUTH_URL: "https://app.mendwell.test" };
 const mailtrap = { MAILTRAP_TOKEN: "tok", EMAIL_FROM: "Mendwell <noreply@koushiksaha.dev>" };
 const r2 = { R2_ACCOUNT_ID: "acc", R2_ACCESS_KEY_ID: "key", R2_SECRET_ACCESS_KEY: "secret", R2_BUCKET: "evidence" };
-const prodReady = { ...prod, ...mailtrap, ...r2, TRIGGER_SECRET_KEY: "tr_prod_x" };
+const keys = { ENCRYPTION_KEYS: JSON.stringify({ k1: Buffer.alloc(32, 1).toString("base64") }), ENCRYPTION_ACTIVE_KID: "k1" };
+const prodReady = { ...prod, ...mailtrap, ...r2, ...keys, TRIGGER_SECRET_KEY: "tr_prod_x" };
 
 describe("parseServerEnv", () => {
   it("accepts a minimal development env", () => {
@@ -45,6 +46,14 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv({ ...prodReady, TRIGGER_SECRET_KEY: undefined })).toThrow(/TRIGGER_SECRET_KEY: required in production/);
     expect(() => parseServerEnv({ ...prodReady, R2_BUCKET: undefined })).toThrow(/R2/);
     expect(parseServerEnv(prodReady).NODE_ENV).toBe("production");
+  });
+
+  it("requires the encryption keyring in production, set as a pair, and refuses DEV_NET_ALLOW there", () => {
+    expect(() => parseServerEnv({ ...prodReady, ENCRYPTION_KEYS: undefined, ENCRYPTION_ACTIVE_KID: undefined })).toThrow(/ENCRYPTION_KEYS: required in production/);
+    expect(() => parseServerEnv({ ...base, ENCRYPTION_KEYS: keys.ENCRYPTION_KEYS })).toThrow(/together/);
+    expect(() => parseServerEnv({ ...prodReady, DEV_NET_ALLOW: "127.0.0.1:8888" })).toThrow(/DEV_NET_ALLOW: must be unset in production/);
+    expect(parseServerEnv({ ...base, DEV_NET_ALLOW: "127.0.0.1:8888,127.0.0.1:8889" }).DEV_NET_ALLOW).toBe("127.0.0.1:8888,127.0.0.1:8889");
+    expect(() => parseServerEnv({ ...base, DEV_NET_ALLOW: "localhost:8888" })).toThrow(/ip:port/);
   });
 
   it("requires all four R2 variables together", () => {

@@ -199,6 +199,11 @@ describe("requests against a local server (test allowance for 127.0.0.1:<port> o
     port = (server.address() as AddressInfo).port;
 
     routes.set("/ok", (_req, res) => res.writeHead(200, { "content-type": "text/html" }).end("<h1>hello</h1>"));
+    routes.set("/echo", (req, res) => {
+      let body = "";
+      req.on("data", (c) => (body += c));
+      req.on("end", () => res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ method: req.method, body, type: req.headers["content-type"] })));
+    });
     routes.set("/redirect-relative", (_req, res) => res.writeHead(302, { location: "/ok" }).end());
     routes.set("/redirect-metadata", (_req, res) => res.writeHead(302, { location: "http://169.254.169.254/latest/meta-data/" }).end());
     routes.set("/redirect-ftp", (_req, res) => res.writeHead(301, { location: "ftp://example.com/" }).end());
@@ -344,6 +349,23 @@ describe("requests against a local server (test allowance for 127.0.0.1:<port> o
       const res = await client()(`http://site.test:${port}/ok`, { method: "HEAD" });
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(0);
+    });
+  });
+
+  describe("POST (signed connector calls)", () => {
+    it("sends the body with its length", async () => {
+      const res = await client()(`http://site.test:${port}/echo`, { method: "POST", body: '{"a":"é"}', headers: { "content-type": "application/json" } });
+      expect(JSON.parse(res.body.toString())).toEqual({ method: "POST", body: '{"a":"é"}', type: "application/json" });
+    });
+
+    it("never follows a redirect, so a signed body can't be replayed elsewhere", async () => {
+      const res = await client()(`http://site.test:${port}/redirect-relative`, { method: "POST", body: "{}" });
+      expect(res.status).toBe(302);
+      expect(res.redirects).toEqual([]);
+    });
+
+    it("still refuses blocked addresses", async () => {
+      await expectCode(client()("http://169.254.169.254/latest", { method: "POST", body: "{}" }), "blocked_address");
     });
   });
 

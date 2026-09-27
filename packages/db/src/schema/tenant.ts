@@ -71,6 +71,8 @@ export const sites = pgTable(
     platform: sitePlatformEnum("platform").notNull().default("wordpress"),
     connection: siteConnectionEnum("connection").notNull().default("none"),
     connectorVersion: text("connector_version"),
+    /** "pretty" (/wp-json/…) or "query" (?rest_route=… on plain-permalink sites), found at pairing. */
+    connectorRestMode: text("connector_rest_mode").notNull().default("pretty"),
     /** AES-256-GCM payload from @mendwell/core encrypt(), context `site:<id>:connector_secret`. */
     secretEnc: text("secret_enc"),
     ownershipVerifiedAt: timestamptz("ownership_verified_at"),

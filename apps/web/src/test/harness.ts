@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
-import { unsafeOrgId, type OrgId, type Role } from "@mendwell/core";
+import { randomBytes } from "node:crypto";
+import { parseKeyring, unsafeOrgId, type OrgId, type Role } from "@mendwell/core";
 import { createRepositories, type Db } from "@mendwell/db";
 import { memberships, users } from "@mendwell/db/schema";
 import { createMemoryStore } from "@mendwell/db/storage";
@@ -31,6 +32,9 @@ export async function createHarness() {
   });
   const store = createMemoryStore();
   const enqueued: ScanJob[] = [];
+  const keyring = parseKeyring({ ENCRYPTION_KEYS: JSON.stringify({ t1: randomBytes(32).toString("base64") }), ENCRYPTION_ACTIVE_KID: "t1" });
+  // Tests open individual local ports for fake WordPress sites with allowPort().
+  const net = { testAllow: { addresses: ["127.0.0.1"], ports: [] as number[] }, resolver: undefined as undefined | ((h: string) => Promise<{ address: string; family: 4 | 6 }[]>) };
   setServerContextForTests({
     env: { BETTER_AUTH_URL: BASE_URL },
     db,
@@ -38,6 +42,8 @@ export async function createHarness() {
     auth,
     mailer,
     store,
+    keyring,
+    net,
     scansEnabled: true,
     enqueueScan: async (job) => {
       enqueued.push(job);
@@ -99,6 +105,15 @@ export async function createHarness() {
     outbox,
     store,
     enqueued,
+    keyring,
+    /** Let the app reach a fake site on 127.0.0.1:<port> (and resolve test hostnames to it). */
+    allowPort: (port: number) => void net.testAllow.ports.push(port),
+    resolveTo127: (hosts: string[]) => {
+      net.resolver = async (host: string) => {
+        if (hosts.includes(host) || host === "127.0.0.1") return [{ address: "127.0.0.1", family: 4 as const }];
+        throw Object.assign(new Error("ENOTFOUND"), { code: "ENOTFOUND" });
+      };
+    },
     uniq,
     signIn,
     createUser,

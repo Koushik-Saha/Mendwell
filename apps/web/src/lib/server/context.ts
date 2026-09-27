@@ -1,7 +1,9 @@
 import { createRepositories, type Db, type Repositories } from "@mendwell/db";
 import { createDb } from "@mendwell/db/client";
 import { createR2Store, createUnconfiguredStore, type ObjectStore } from "@mendwell/db/storage";
+import { parseKeyring, type Keyring } from "@mendwell/core";
 import { magicLinkEmail, type Mailer } from "@mendwell/email";
+import type { SafeFetchOptions } from "@mendwell/scanner/net";
 import { createAuth, MAGIC_LINK_TTL_SECONDS, type Auth } from "./auth";
 import { parseServerEnv, type ServerEnv } from "./env";
 import { AppError } from "./errors";
@@ -17,6 +19,10 @@ export type ServerContext = {
   mailer: Mailer;
   /** Evidence screenshots (R2). */
   store: ObjectStore;
+  /** Encryption keys for connector secrets, or null when not configured (pairing then refuses). */
+  keyring: Keyring | null;
+  /** Options for every outbound request to customer sites (resolver / dev allowance). */
+  net: Pick<SafeFetchOptions, "resolver" | "testAllow">;
   /** False when this server can't start scans (no Trigger.dev key). Checked before creating a scan row. */
   scansEnabled: boolean;
   /** Start the scan.site task. Returns the Trigger.dev run id. */
@@ -59,7 +65,21 @@ function build(): ServerContext {
     env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET
       ? createR2Store({ accountId: env.R2_ACCOUNT_ID, accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY, bucket: env.R2_BUCKET })
       : createUnconfiguredStore(); // development without R2: no screenshots
-  return { env, db, repos: createRepositories(db), auth, mailer, store, scansEnabled: Boolean(env.TRIGGER_SECRET_KEY), enqueueScan: scanEnqueuer(env) };
+  const keyring = env.ENCRYPTION_KEYS ? parseKeyring(env) : null;
+  const devAllow = env.DEV_NET_ALLOW?.split(",").map((pair) => pair.split(":") as [string, string]);
+  const net = devAllow ? { testAllow: { addresses: [...new Set(devAllow.map(([a]) => a))], ports: devAllow.map(([, p]) => Number(p)) } } : {};
+  return {
+    env,
+    db,
+    repos: createRepositories(db),
+    auth,
+    mailer,
+    store,
+    keyring,
+    net,
+    scansEnabled: Boolean(env.TRIGGER_SECRET_KEY),
+    enqueueScan: scanEnqueuer(env),
+  };
 }
 
 /** Lazily built on first use so `next build` and tests don't need a database. */

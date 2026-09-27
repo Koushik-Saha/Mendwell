@@ -128,3 +128,75 @@ export async function issueScreenshot(ctx: OrgContext, siteId: string, issueId: 
   if (!object) throw notFound("That screenshot");
   return object.body;
 }
+
+export type SiteInput = { url: string; name?: string | undefined; timezone?: string | undefined };
+
+/**
+ * A site's canonical address: scheme + host + path (subfolder installs), trailing slash, no query,
+ * no credentials, default ports only. HTTPS in production: the connector refuses unsigned HTTP.
+ */
+export function normalizeSiteUrl(raw: string, options: { requireHttps: boolean }): string {
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(raw.trim()) ? raw.trim() : `https://${raw.trim()}`);
+  } catch {
+    throw new AppError("validation_failed", "Enter the site's address, like https://example.com.", 400);
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") throw new AppError("validation_failed", "The address must start with https://.", 400);
+  if (options.requireHttps && url.protocol !== "https:") throw new AppError("validation_failed", "The site must use HTTPS so Mendwell can talk to it securely.", 400);
+  if (url.username || url.password) throw new AppError("validation_failed", "Leave the username and password out of the address.", 400);
+  if (!/^[a-z0-9.-]+$/i.test(url.hostname) || !url.hostname.includes(".") && url.hostname !== "localhost") {
+    throw new AppError("validation_failed", "Enter a public domain name, like example.com.", 400);
+  }
+  url.hash = "";
+  url.search = "";
+  if (!url.pathname.endsWith("/")) url.pathname += "/";
+  return url.toString();
+}
+
+export async function createSite(ctx: OrgContext, input: SiteInput) {
+  const { repos } = server();
+  if (!hasRole(ctx.role, "admin")) throw new AppError("forbidden", "Only admins and owners can add sites.", 403);
+  const url = normalizeSiteUrl(input.url, { requireHttps: process.env.NODE_ENV === "production" });
+  const existing = (await repos.sites.list(ctx.orgId)).find((s) => s.url === url);
+  if (existing) throw new AppError("conflict", "That site is already in this workspace.", 409);
+  const site = await repos.sites.create(ctx.orgId, {
+    url,
+    name: input.name?.trim() || new URL(url).hostname.replace(/^www\./, ""),
+    timezone: input.timezone ?? "UTC",
+  });
+  if (!site) throw new Error("site insert returned no row");
+  await repos.audit.record(ctx.orgId, { actor: `user:${ctx.user.id}`, action: "site.created", entity: "site", entityId: site.id });
+  return site;
+}
+
+export type SiteSettings = {
+  name?: string | undefined;
+  timezone?: string | undefined;
+  protectedPaths?: string[] | undefined;
+  dailyWriteCap?: number | undefined;
+  reportRecipients?: string[] | undefined;
+};
+
+export async function updateSiteSettings(ctx: OrgContext, siteId: string, input: SiteSettings) {
+  const { repos } = server();
+  const site = await getSite(ctx, siteId);
+  if (!hasRole(ctx.role, "admin")) throw new AppError("forbidden", "Only admins and owners can change site settings.", 403);
+  const patch: Record<string, unknown> = {};
+  if (input.name !== undefined) patch.name = input.name.trim();
+  if (input.timezone !== undefined) patch.timezone = input.timezone;
+  if (input.protectedPaths !== undefined) {
+    patch.protectedPaths = [...new Set(input.protectedPaths.map((p) => `/${p.trim().replace(/^\/+/, "")}`).filter((p) => p !== "/"))];
+  }
+  if (input.dailyWriteCap !== undefined) patch.dailyWriteCap = input.dailyWriteCap;
+  if (input.reportRecipients !== undefined) patch.reportRecipients = [...new Set(input.reportRecipients.map((e) => e.trim().toLowerCase()))];
+  const updated = await repos.sites.update(ctx.orgId, site.id, patch);
+  await repos.audit.record(ctx.orgId, {
+    actor: `user:${ctx.user.id}`,
+    action: "site.settings_updated",
+    entity: "site",
+    entityId: site.id,
+    meta: { fields: Object.keys(patch).sort().join(",") },
+  });
+  return updated;
+}

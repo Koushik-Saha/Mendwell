@@ -1,3 +1,4 @@
+import { hasRole } from "@mendwell/core";
 import { ChevronRight, CircleCheck, Globe, Hourglass, ShieldQuestion, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -43,9 +44,13 @@ export default async function SitesPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Sites" description="Every WordPress site Mendwell looks after, with its open issues and recent fixes." />
+      <PageHeader
+        title="Sites"
+        description="Every WordPress site Mendwell looks after, with its open issues and recent fixes."
+        actions={sites.length > 0 && hasRole(ctx.role, "admin") ? <AddSiteButton id="sites-add" canAdd /> : undefined}
+      />
       {sites.length === 0 ? (
-        <EmptyState icon={Globe} title="No sites yet" action={<AddSiteButton id="sites-add-site-note" />}>
+        <EmptyState icon={Globe} title="No sites yet" action={<AddSiteButton id="sites-add-site-note" canAdd={hasRole(ctx.role, "admin")} />}>
           <p>Add a site to start scanning. You&apos;ll need WordPress admin access to install the connector plugin.</p>
           <p>Checkout, cart, account and login pages are never changed automatically. You can protect more pages in each site&apos;s settings.</p>
         </EmptyState>
@@ -65,7 +70,7 @@ export default async function SitesPage() {
                   {site.verified ? null : (
                     <Badge>
                       <ShieldQuestion aria-hidden="true" />
-                      Not verified
+                      Not connected
                     </Badge>
                   )}
                   <span>

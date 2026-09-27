@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/connector-zip.mjs",
+    "prebuild": "node scripts/connector-zip.mjs",
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
@@ -16,6 +18,7 @@
     "@mendwell/core": "workspace:*",
     "@mendwell/db": "workspace:*",
     "@mendwell/email": "workspace:*",
+    "@mendwell/scanner": "workspace:*",
     "@mendwell/ui-preset": "workspace:*",
     "@radix-ui/react-slot": "^1.2.3",
     "@sentry/nextjs": "^10.11.0",

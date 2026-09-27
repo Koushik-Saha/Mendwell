@@ -15,6 +15,11 @@ export type ErrorCode =
   | "invalid_code"
   | "site_unverified"
   | "scans_unavailable"
+  | "rate_limited"
+  | "site_mismatch"
+  | "challenge_failed"
+  | "pairing_unavailable"
+  | "connector_unreachable"
   | "internal_error";
 
 /** An error that is safe to show to the client as `{ error: { code, message } }`. */

@@ -1,9 +1,9 @@
 import { CATEGORY_LABELS, hasRole, isProtectedPage, ruleLabel, type IssueCategory } from "@mendwell/core";
-import { ArrowLeft, CircleCheck, Lock } from "lucide-react";
+import { CircleCheck, Lock } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EvidenceButton } from "@/components/sites/evidence-dialog";
+import { SiteHeader } from "@/components/sites/site-header";
 import { ScanPanel, type ScanView } from "@/components/sites/scan-panel";
 import { BucketBadge, SEVERITY_ORDER, SeverityBadge } from "@/components/sites/severity";
 import { pathOf } from "@/lib/format";
@@ -45,16 +45,7 @@ export default async function SitePage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="space-y-6">
-      <Link href="/sites" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        All sites
-      </Link>
-      <header className="border-b border-border pb-5">
-        <h1 className="text-xl font-semibold tracking-[-0.01em]">{site.name}</h1>
-        <a href={site.url} target="_blank" rel="noopener noreferrer nofollow" className="text-sm text-muted-foreground underline-offset-2 hover:underline">
-          {site.url}
-        </a>
-      </header>
+      <SiteHeader site={site} canManage={hasRole(ctx.role, "admin")} />
 
       <ScanPanel siteId={site.id} initialScan={initialScan} canScan={hasRole(ctx.role, "admin")} verified={Boolean(site.ownershipVerifiedAt)} />
 

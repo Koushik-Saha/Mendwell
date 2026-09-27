@@ -66,7 +66,10 @@ export type SafeFetchOptions = {
 };
 
 export type SafeRequest = {
-  method?: "GET" | "HEAD";
+  /** POST is for signed connector calls: it never follows redirects (a signed body must not be replayed elsewhere). */
+  method?: "GET" | "HEAD" | "POST";
+  /** Request body (POST only). */
+  body?: string;
   headers?: Record<string, string>;
   /** "follow" (default) validates and follows up to maxRedirects hops; "manual" returns the 3xx as-is. */
   redirect?: "follow" | "manual";
@@ -140,6 +143,7 @@ export function createSafeFetch(options: SafeFetchOptions = {}): SafeFetch {
       path: `${url.pathname}${url.search}`,
       method: init.method ?? "GET",
       headers: {
+        ...(init.method === "POST" ? { "content-length": String(Buffer.byteLength(init.body ?? "")) } : {}),
         "user-agent": userAgent,
         accept: "*/*",
         "accept-encoding": "gzip, deflate, br",
@@ -164,7 +168,7 @@ export function createSafeFetch(options: SafeFetchOptions = {}): SafeFetch {
         resolve({ res, remoteAddress });
       });
       req.on("error", (error) => reject(toSafeError(error, deadline)));
-      req.end();
+      req.end(init.method === "POST" ? (init.body ?? "") : undefined);
     });
   }
 
@@ -228,7 +232,7 @@ export function createSafeFetch(options: SafeFetchOptions = {}): SafeFetch {
       const status = res.statusCode ?? 0;
       const location = res.headers.location;
 
-      if (REDIRECT_STATUSES.has(status) && location && init.redirect !== "manual") {
+      if (REDIRECT_STATUSES.has(status) && location && init.redirect !== "manual" && method !== "POST") {
         res.resume();
         if (redirects.length >= maxRedirects) throw new SafeFetchError("too_many_redirects", `More than ${maxRedirects} redirects`);
         redirects.push(target.url.toString());

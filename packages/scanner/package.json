@@ -5,7 +5,8 @@
   "description": "Crawler, checks (axe, meta, links, ssl, uptime), Lighthouse runner and the SSRF-safe fetcher.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./net": "./src/net/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

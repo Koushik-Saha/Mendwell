@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Builds dist/mendwell-connector-<version>.zip containing only what ships: no tests, no dev tooling.
 //   APP_URL=https://app.example.com pnpm --filter mendwell-connector build
-import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { zipFolder } from "./zip.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const main = readFileSync(join(root, "mendwell-connector.php"), "utf8");
@@ -16,7 +16,7 @@ if (!version || version !== constant || version !== stable) {
   process.exit(1);
 }
 
-const appUrl = process.env.APP_URL;
+const appUrl = process.env.APP_URL || undefined;
 if (appUrl && !/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(appUrl)) {
   console.error("APP_URL must be an https origin like https://app.example.com (no path)");
   process.exit(1);
@@ -42,6 +42,6 @@ const dist = join(root, "dist");
 mkdirSync(dist, { recursive: true });
 const zip = join(dist, `mendwell-connector-${version}.zip`);
 if (existsSync(zip)) rmSync(zip);
-execFileSync("zip", ["-rqX", zip, "mendwell-connector"], { cwd: stage });
+zipFolder(pluginDir, zip);
 rmSync(stage, { recursive: true, force: true });
 console.log(`Built ${zip}`);

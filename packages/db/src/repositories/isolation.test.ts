@@ -102,6 +102,9 @@ describe("writes scoped to the wrong org change nothing", () => {
     "sites.getConnectorSecret": (r) => r.sites.getConnectorSecret(b.orgId, a.site.id),
     "alerts.acknowledge": (r) => r.alerts.acknowledge(b.orgId, a.alert.id),
     "scanRuns.start": (r) => r.scanRuns.start(b.orgId, a.scan.id),
+    "sites.markPaired": (r) => r.sites.markPaired(b.orgId, a.site.id, { secretEnc: "v1:k:x:y:z", connectorVersion: "0.1.0", restMode: "pretty" }),
+    "sites.disconnect": (r) => r.sites.disconnect(b.orgId, a.site.id),
+    "pairingCodes.consume": (r) => r.pairingCodes.consume(b.orgId, a.pairingCode.id),
     "scanRuns.byRunId": async (r) => {
       await r.scanRuns.setRunId(a.orgId, a.scan.id, "run_isolation");
       return r.scanRuns.byRunId(b.orgId, "run_isolation");
@@ -111,6 +114,13 @@ describe("writes scoped to the wrong org change nothing", () => {
 
   it.each(Object.entries(writes))("%s returns null", async (_name, write) => {
     expect(await write(repos)).toBeNull();
+  });
+
+  it("pairing-code housekeeping only touches the caller's org", async () => {
+    await repos.pairingCodes.revokeUnused(b.orgId, a.site.id);
+    expect(await repos.pairingCodes.countSince(b.orgId, a.site.id, new Date(0))).toBe(0);
+    expect(await repos.pairingCodes.countSince(a.orgId, a.site.id, new Date(0))).toBe(1);
+    expect((await repos.pairingCodes.listActiveForSite(a.orgId, a.site.id)).map((c) => c.id)).toContain(a.pairingCode.id);
   });
 
   it("scoped bulk writes skip another org's rows", async () => {
