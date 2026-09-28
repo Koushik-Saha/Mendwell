@@ -94,6 +94,28 @@ jobs:
       - name: PHPUnit
         run: pnpm test:connector
 
+      # Apply → verify → rollback against the real plugin in this WordPress (PROJECT_SPEC §3).
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('./packages/scanner/package.json').dependencies.playwright")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @mendwell/scanner exec playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @mendwell/scanner exec playwright install-deps chromium
+
+      - name: Fix engine end to end (wp-env)
+        run: pnpm --filter @mendwell/worker test:e2e:wp
+
       - name: Build zip
         run: pnpm --filter mendwell-connector build
 

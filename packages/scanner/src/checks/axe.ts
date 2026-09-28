@@ -81,3 +81,20 @@ export async function runAxe(page: Page, pageUrl: string, options: { screenshots
   }
   return findings;
 }
+
+/**
+ * Re-run axe `image-alt` on specific elements (fix verification, PROJECT_SPEC §5.1). Selectors
+ * that match nothing are skipped (axe refuses an include that matches nothing).
+ */
+export async function axeImageAlt(page: Page, selectors: string[]): Promise<{ violations: number; checked: number }> {
+  const present: string[] = [];
+  for (const selector of selectors) {
+    if ((await page.locator(selector).count().catch(() => 0)) > 0) present.push(selector);
+  }
+  if (present.length === 0) return { violations: 0, checked: 0 };
+  let builder = new AxeBuilder({ page }).withRules(["image-alt"]);
+  for (const selector of present) builder = builder.include(selector);
+  const results = await builder.analyze();
+  const nodes = (list: { id: string; nodes: unknown[] }[]) => list.filter((r) => r.id === "image-alt").reduce((n, r) => n + r.nodes.length, 0);
+  return { violations: nodes(results.violations), checked: nodes(results.violations) + nodes(results.passes) };
+}

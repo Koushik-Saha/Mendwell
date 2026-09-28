@@ -48,6 +48,7 @@ export function workerDeps(): WorkerDeps {
     ai: env.ANTHROPIC_API_KEY ? { client: createAnthropicClient({ apiKey: env.ANTHROPIC_API_KEY }), visionModel: env.AI_MODEL_VISION, textModel: env.AI_MODEL_TEXT } : null,
   };
   if (!cached.keyring) logger.warn("worker.encryption.not_configured: connector calls are skipped");
+  if (env.WRITES_ENABLED !== "true") logger.warn("worker.writes_disabled: WRITES_ENABLED is not true, so no fix is applied");
   if (!cached.ai) logger.warn("worker.ai.not_configured: only link fixes are proposed");
   return cached;
 }

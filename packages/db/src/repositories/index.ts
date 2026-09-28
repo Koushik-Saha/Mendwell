@@ -8,7 +8,7 @@ import { clientsRepo, pagesRepo, pairingCodesRepo, siteCategoriesRepo, sitesRepo
 /**
  * Every tenant repository function takes an OrgId first. Deliberate exceptions, each documented at
  * the definition: access.* (establishes membership, which is how an OrgId is obtained),
- * invitations.findPendingByTokenHash (the invitee isn't a member yet), and systemSitesRepo
+ * invitations.findPendingByTokenHash (the invitee isn't a member yet), and systemSitesRepo / systemFixesRepo
  * (worker schedulers only; exported separately and not part of this object).
  */
 export function createRepositories(db: Db) {
@@ -43,5 +43,5 @@ export function createRepositories(db: Db) {
 
 export type Repositories = ReturnType<typeof createRepositories>;
 export type { Actor, AuditEntry } from "./orgs";
-export { FixStateConflictError, type AiUsageEntry } from "./fixes";
+export { FixStateConflictError, systemFixesRepo, type AiUsageEntry, type FixExtra } from "./fixes";
 export { systemSitesRepo, urlHash, type IssueRow, type ScanCounts, type ScanProgress } from "./pipeline";

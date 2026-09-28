@@ -81,6 +81,8 @@ export async function routeThroughSafeFetch(
   safeFetch: SafeFetch,
   /** Awaited right before each page (document) request is sent: where Crawl-delay is enforced. */
   beforeDocumentRequest?: () => Promise<void>,
+  /** Extra request headers, e.g. no-cache for verification re-fetches. */
+  extraHeaders: Record<string, string> = {},
 ) {
   // First layer: pages can't submit forms at all (scripts that auto-submit would otherwise
   // navigate away from the page being scanned). The route below still refuses any non-GET.
@@ -99,7 +101,7 @@ export async function routeThroughSafeFetch(
       const res = await safeFetch(url, {
         method: method as "GET" | "HEAD",
         redirect: "manual", // let Chromium follow, so every hop comes back through here
-        headers: { accept: request.headers().accept ?? "*/*" },
+        headers: { accept: request.headers().accept ?? "*/*", ...extraHeaders },
       });
       const headers = Object.fromEntries(Object.entries(res.headers).filter(([k]) => !HOP_BY_HOP.has(k.toLowerCase())));
       await route.fulfill({ status: res.status, headers, body: res.body });

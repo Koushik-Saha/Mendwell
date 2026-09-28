@@ -1,6 +1,8 @@
 import type { OrgId } from "@mendwell/core";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Db } from "../db";
+import { sites as sitesTable } from "../schema";
 import { createTestDb, seedOrgGraph, type SeededOrg } from "../testing";
 import { createRepositories, type Repositories } from "./index";
 
@@ -109,6 +111,7 @@ describe("writes scoped to the wrong org change nothing", () => {
       await r.scanRuns.setRunId(a.orgId, a.scan.id, "run_isolation");
       return r.scanRuns.byRunId(b.orgId, "run_isolation");
     },
+    "fixRecords.recordVerifyAttempt": (r) => r.fixRecords.recordVerifyAttempt(b.orgId, a.fix.id, 1, {}),
     "fixRecords.transition": (r) => r.fixRecords.transition(b.orgId, a.fix.id, { type: "request_approval" }, "worker"),
     "scanRuns.finish": (r) => r.scanRuns.finish(b.orgId, a.scan.id, { status: "failed", workerSeconds: 1 }),
   };
@@ -138,6 +141,10 @@ describe("writes scoped to the wrong org change nothing", () => {
     expect((await repos.fixes.get(a.orgId, a.fix.id))?.status).toBe("proposed");
     expect(await repos.fixRecords.recentDecisions(b.orgId, a.site.id, "alt_text")).toEqual([]);
     expect(await repos.fixRecords.autoFixesSince(b.orgId, a.site.id, new Date(0))).toBe(0);
+    expect(await repos.fixRecords.writesSince(b.orgId, new Date(0))).toBe(0);
+    await repos.sites.pauseAllWrites(b.orgId);
+    expect((await repos.sites.get(a.orgId, a.site.id))?.writesPaused).toBe(false);
+    await db.update(sitesTable).set({ writesPaused: false }).where(eq(sitesTable.orgId, b.orgId));
     // The positive control for proposalCandidates is in fixes.test.ts (a seeded issue already has a fix).
     expect(await repos.fixRecords.proposalCandidates(b.orgId, a.site.id, { retryAfter: new Date(Date.now() + 60_000), limit: 100 })).toEqual([]);
     expect(await repos.aiUsage.callsSince(b.orgId, new Date(0))).toBe(1); // b's own seeded row only

@@ -27,7 +27,7 @@ function newPairingCode(): string {
   return chars.match(/.{4}/g)?.join("-") ?? chars;
 }
 
-const siteFetch = () => createSafeFetch({ ...server().net, userAgent: "MendwellBot/1.0", timeoutMs: 15_000 });
+const siteFetch = (timeoutMs = 15_000) => createSafeFetch({ ...server().net, userAgent: "MendwellBot/1.0", timeoutMs });
 
 /** Admin + owner: a one-time code for this site, shown once, stored hashed (15 minutes, single use). */
 export async function createPairingCode(ctx: OrgContext, siteId: string) {
@@ -116,13 +116,13 @@ export async function pairConnector(input: { code: string; siteUrl: string; chal
 }
 
 /** A signed client for a paired site, or null. The secret is decrypted in memory only. */
-export async function connectorFor(ctx: Pick<OrgContext, "orgId">, siteId: string): Promise<ConnectorClient | null> {
+export async function connectorFor(ctx: Pick<OrgContext, "orgId">, siteId: string, timeoutMs = 15_000): Promise<ConnectorClient | null> {
   const { repos, keyring } = server();
   const site = await repos.sites.get(ctx.orgId, siteId);
   const stored = await repos.sites.getConnectorSecret(ctx.orgId, siteId);
   if (!site || site.connection !== "connector" || !stored?.secretEnc || !keyring) return null;
   const secret = decrypt(keyring, stored.secretEnc, secretContext(site.id));
-  const safeFetch = siteFetch();
+  const safeFetch = siteFetch(timeoutMs);
   return createConnectorClient({
     siteUrl: site.url,
     secret,
@@ -158,6 +158,28 @@ export async function setWritesPaused(ctx: OrgContext, siteId: string, paused: b
     meta: { syncedToPlugin },
   });
   return { paused, syncedToPlugin };
+}
+
+/**
+ * A pause switched on in WordPress admin (Settings → Mendwell) is mirrored into Mendwell when
+ * someone opens the site's settings (the worker also mirrors it before every write). Best effort:
+ * a short timeout, and it never throws. Resuming stays a Mendwell decision.
+ */
+export async function syncPauseFromPlugin(ctx: Pick<OrgContext, "orgId">, siteId: string): Promise<boolean | null> {
+  const { repos } = server();
+  try {
+    const client = await connectorFor(ctx, siteId, 3_000);
+    if (!client) return null;
+    const status = await client.status();
+    const site = await repos.sites.get(ctx.orgId, siteId);
+    if (status.paused && site && !site.writesPaused) {
+      await repos.sites.update(ctx.orgId, site.id, { writesPaused: true });
+      await repos.audit.record(ctx.orgId, { actor: "system", action: "site.paused", entity: "site", entityId: site.id, meta: { source: "plugin" } });
+    }
+    return status.paused;
+  } catch {
+    return null;
+  }
 }
 
 export async function disconnectConnector(ctx: OrgContext, siteId: string) {

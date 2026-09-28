@@ -182,3 +182,29 @@ describe("graduation inputs and AI usage", () => {
     expect(await repos.fixRecords.autoFixesSince(a.orgId, a.site.id, new Date(Date.now() - 60_000))).toBe(1);
   });
 });
+
+describe("apply and verify bookkeeping", () => {
+  it("saves apply results with the status change, counts writes, and records verify attempts", async () => {
+    const i = await issue();
+    const fix = await repos.fixRecords.create(a.orgId, proposal(i.id), "worker");
+    const id = fix?.id ?? "";
+    await repos.fixRecords.transition(a.orgId, id, { type: "request_approval" }, "worker");
+    await repos.fixRecords.transition(a.orgId, id, { type: "approve" }, `user:${a.user.id}`);
+    await repos.fixRecords.transition(a.orgId, id, { type: "start_apply" }, "worker");
+    const before = await repos.fixRecords.writesSince(a.orgId, new Date(Date.now() - 3_600_000));
+    const applied = await repos.fixRecords.transition(a.orgId, id, { type: "applied" }, "worker", new Date(), { beforeValue: { alt: "" }, connectorLogId: "7,8" });
+    expect(applied).toMatchObject({ status: "applied", beforeValue: { alt: "" }, connectorLogId: "7,8" });
+    expect(await repos.fixRecords.writesSince(a.orgId, new Date(Date.now() - 3_600_000))).toBe(before + 1);
+
+    expect(await repos.fixRecords.recordVerifyAttempt(a.orgId, id, 1, { pass: false })).toBeNull(); // not verifying yet
+    await repos.fixRecords.transition(a.orgId, id, { type: "start_verify" }, "worker");
+    expect(await repos.fixRecords.recordVerifyAttempt(a.orgId, id, 1, { pass: false, reason: "alt_mismatch" })).toMatchObject({ status: "verifying", verifyAttempts: 1 });
+  });
+
+  it("pauses every site in the org at once", async () => {
+    const paused = await repos.sites.pauseAllWrites(a.orgId);
+    expect(paused.map((p) => p.id)).toContain(a.site.id);
+    expect((await repos.sites.get(a.orgId, a.site.id))?.writesPaused).toBe(true);
+    await repos.sites.update(a.orgId, a.site.id, { writesPaused: false });
+  });
+});

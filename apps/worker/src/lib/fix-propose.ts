@@ -54,7 +54,7 @@ export type ProposeDeps = {
 
 export type ProposeOutcome =
   | { status: "skipped"; reason: string }
-  | { status: "done"; proposed: number; auto: number; approval: number; noFix: Record<string, number>; aiCalls: number };
+  | { status: "done"; proposed: number; auto: number; approval: number; noFix: Record<string, number>; aiCalls: number; autoFixIds: string[] };
 
 /** Rules this task acts on. External links are approval-only suggestions, not built yet. */
 const PROPOSE_RULES = [
@@ -120,7 +120,7 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
     limit: CANDIDATES_PER_RUN,
     rules: PROPOSE_RULES,
   });
-  if (candidates.length === 0) return { status: "done", proposed: 0, auto: 0, approval: 0, noFix: {}, aiCalls: 0 };
+  if (candidates.length === 0) return { status: "done", proposed: 0, auto: 0, approval: 0, noFix: {}, aiCalls: 0, autoFixIds: [] };
 
   // SECURITY.md T13: per-org daily cap and a per-run cap on model calls.
   const used = await repos.aiUsage.callsSince(orgId, new Date(now().getTime() - DAY_MS));
@@ -330,6 +330,7 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
   const protectedUrls = wooProtectedUrls(status.woocommerce);
   let auto = 0;
   let approval = 0;
+  const autoFixIds: string[] = [];
 
   for (const p of proposals) {
     const decision = decideBucket({
@@ -363,6 +364,7 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
       await repos.fixRecords.transition(orgId, fix.id, { type: "auto_approve" }, "worker");
       autoToday++;
       auto++;
+      autoFixIds.push(fix.id);
     } else {
       await repos.fixRecords.transition(orgId, fix.id, { type: "request_approval" }, "worker");
       approval++;
@@ -372,5 +374,5 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
   await repos.aiUsage.record(orgId, unusedUsage.map((u) => ({ ...u, siteId: site.id, fixId: null })));
   await repos.fixRecords.markAttempted(orgId, attempted, now());
   logger.info("fix.propose.done", { siteId: site.id, scanId: payload.scanId, proposed: auto + approval, auto, approval, aiCalls });
-  return { status: "done", proposed: auto + approval, auto, approval, noFix, aiCalls };
+  return { status: "done", proposed: auto + approval, auto, approval, noFix, aiCalls, autoFixIds };
 }

@@ -9,3 +9,4 @@ export * from "./lifecycle";
 export * from "./graduation";
 export * from "./validators";
 export * from "./fixValues";
+export * from "./verification";

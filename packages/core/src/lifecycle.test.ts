@@ -53,6 +53,9 @@ describe("transition", () => {
     const undoable = fixStatuses.filter((s) => canTransition(s, "undo"));
     expect(undoable).toEqual(["verified"]);
     expect(fixStatuses.filter((s) => canTransition(s, "start_apply"))).toEqual(["approved", "edited"]);
+    // A write the site refused goes back in line, keeping the approved value.
+    const requeued = transition(fix("applying"), { type: "requeue", reason: "site_paused" });
+    expect(requeued).toMatchObject({ to: "approved", patch: {}, audit: { meta: { reason: "site_paused" } } });
   });
 
   it("writes an audit entry with ids and codes only, never values", () => {

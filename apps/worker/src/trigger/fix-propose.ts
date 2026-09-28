@@ -1,6 +1,7 @@
 import { queue, task } from "@trigger.dev/sdk";
 import { workerDeps } from "../lib/deps";
 import { runFixPropose, type FixProposePayload } from "../lib/fix-propose";
+import { enqueueApply } from "./fixes";
 
 /** One proposal run at a time per site (concurrencyKey = siteId). */
 export const fixProposalsQueue = queue({ name: "fix-proposals", concurrencyLimit: 1 });
@@ -13,7 +14,10 @@ export const fixProposeTask = task({
   retry: { maxAttempts: 2, minTimeoutInMs: 60_000, maxTimeoutInMs: 300_000, factor: 2 },
   run: async (payload: FixProposePayload) => {
     const deps = workerDeps();
-    return runFixPropose({ db: deps.db, keyring: deps.keyring, ai: deps.ai, userAgent: deps.userAgent }, payload);
+    const outcome = await runFixPropose({ db: deps.db, keyring: deps.keyring, ai: deps.ai, userAgent: deps.userAgent }, payload);
+    // GATE (PROJECT_SPEC §3): auto-approved fixes go straight to fix.apply, which re-checks every gate.
+    if (outcome.status === "done") for (const fixId of outcome.autoFixIds) await enqueueApply({ orgId: payload.orgId, fixId, siteId: payload.siteId });
+    return outcome;
   },
 });
 

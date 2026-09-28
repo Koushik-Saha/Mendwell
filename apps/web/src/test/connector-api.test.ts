@@ -12,7 +12,7 @@ import * as resumeRoute from "@/app/api/sites/[id]/resume/route";
 import * as siteRoute from "@/app/api/sites/[id]/route";
 import * as sitesRoute from "@/app/api/sites/route";
 import { server as serverContext, setServerContextForTests } from "@/lib/server/context";
-import { hashPairingCode, secretContext } from "@/lib/server/services/connector";
+import { hashPairingCode, secretContext, syncPauseFromPlugin } from "@/lib/server/services/connector";
 import { createHarness, type Harness } from "./harness";
 
 let h: Harness;
@@ -25,6 +25,8 @@ const plugin = {
   secret: null as string | null,
   plainPermalinks: false,
   failWrites: false,
+  /** The pause switch in WordPress admin. */
+  paused: false,
   calls: [] as { method: string; route: string; validSignature: boolean }[],
 };
 
@@ -43,7 +45,7 @@ beforeAll(async () => {
     const route = url.searchParams.get("rest_route") ?? (url.pathname.startsWith("/wp-json") ? url.pathname.slice("/wp-json".length) : null);
     if (!route || (plugin.plainPermalinks && url.pathname.startsWith("/wp-json"))) return res.writeHead(404).end("not found");
     const body = await readBody(req);
-    if (route === "/mendwell/v1/status" && req.method === "GET") {
+    if (route === "/mendwell/v1/status" && req.method === "GET" && !req.headers["x-mendwell-signature"]) {
       return res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ plugin: "mendwell-connector", challenge: plugin.challenge }));
     }
     const validSignature =
@@ -62,6 +64,7 @@ beforeAll(async () => {
     plugin.calls.push({ method: req.method ?? "", route, validSignature });
     if (plugin.failWrites) return res.writeHead(500).end("{}");
     if (!validSignature) return res.writeHead(401, { "content-type": "application/json" }).end(JSON.stringify({ code: "mendwell_bad_signature" }));
+    if (route === "/mendwell/v1/status") return res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ plugin: "mendwell-connector", paused: plugin.paused }));
     return res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ paused: route.endsWith("/pause") }));
   });
   await new Promise<void>((r) => wp.listen(0, "127.0.0.1", r));
@@ -74,7 +77,7 @@ afterAll(async () => {
   await h.close();
 });
 beforeEach(() => {
-  Object.assign(plugin, { challenge: null, secret: null, plainPermalinks: false, failWrites: false, calls: [] });
+  Object.assign(plugin, { challenge: null, secret: null, plainPermalinks: false, failWrites: false, paused: false, calls: [] });
 });
 
 const siteUrl = () => `http://site.test:${wpPort}/`;
@@ -221,6 +224,23 @@ describe("pause, resume, disconnect", () => {
     expect((await h.call(resumeRoute.POST, { method: "POST", headers, params: { id: siteId } })).json).toEqual({ paused: false, syncedToPlugin: true });
     const actions = (await h.db.select().from(auditLog).where(eq(auditLog.orgId, a.orgId))).map((e) => e.action);
     expect(actions).toEqual(expect.arrayContaining(["site.created", "pairing_code.created", "connector.paired", "site.paused", "site.resumed"]));
+  });
+
+  it("mirrors a pause switched on in WordPress admin, but never resumes on the plugin's say-so", async () => {
+    const { a, siteId } = await paired();
+    const ctx = { orgId: a.orgId };
+    expect(await syncPauseFromPlugin(ctx, siteId)).toBe(false);
+    expect((await h.db.select().from(sites).where(eq(sites.id, siteId)))[0]?.writesPaused).toBe(false);
+    plugin.paused = true;
+    expect(await syncPauseFromPlugin(ctx, siteId)).toBe(true);
+    expect((await h.db.select().from(sites).where(eq(sites.id, siteId)))[0]?.writesPaused).toBe(true);
+    const audit = await h.db.select().from(auditLog).where(and(eq(auditLog.orgId, a.orgId), eq(auditLog.action, "site.paused")));
+    expect(audit.at(-1)).toMatchObject({ actor: "system", meta: { source: "plugin" } });
+    plugin.paused = false;
+    expect(await syncPauseFromPlugin(ctx, siteId)).toBe(false);
+    expect((await h.db.select().from(sites).where(eq(sites.id, siteId)))[0]?.writesPaused).toBe(true);
+    plugin.failWrites = true;
+    expect(await syncPauseFromPlugin(ctx, siteId)).toBeNull(); // unreachable: no change, no error
   });
 
   it("stays paused in Mendwell even if the plugin can't be reached", async () => {

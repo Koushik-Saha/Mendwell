@@ -15,6 +15,10 @@ const schema = z
     ENCRYPTION_KEYS: z.string().min(2).optional(),
     ENCRYPTION_ACTIVE_KID: z.string().min(1).optional(),
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    /** The global kill switch (hard rule 3). Off unless explicitly "true". */
+    WRITES_ENABLED: z.enum(["true", "false"]).default("false"),
+    /** The operator's address for anomaly auto-pauses (SECURITY.md §2 Monitoring). */
+    OPS_ALERT_EMAIL: z.email().optional(),
     AI_MODEL_VISION: z.string().min(1).default("claude-sonnet-5"),
     AI_MODEL_TEXT: z.string().min(1).default("claude-sonnet-5"),
   })

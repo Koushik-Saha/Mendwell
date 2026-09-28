@@ -6,9 +6,10 @@ import {
   type OrgId,
 } from "@mendwell/core";
 import { createRepositories, type Db } from "@mendwell/db";
-import { alertEmail, type Mailer } from "@mendwell/email";
+import type { Mailer } from "@mendwell/email";
 import { checkSsl, checkUptime, createSafeFetch, type Resolver, type TestAllow } from "@mendwell/scanner";
 import { logger } from "@trigger.dev/sdk";
+import { notifyTeam } from "./notify";
 
 export type MonitorSite = { orgId: OrgId; siteId: string; url: string; name: string; timezone: string; plan: string };
 
@@ -30,23 +31,7 @@ export function dueForDailyScan<T extends { timezone: string }>(sites: T[], now:
 }
 
 /** Email the org's owners and admins. Alert rows are the record; a failed email is logged, not fatal. */
-async function notify(deps: MonitorDeps, site: MonitorSite, content: { headline: string; body: string; action?: string }) {
-  const repos = createRepositories(deps.db);
-  const recipients = await repos.teamContacts.emails(site.orgId, ["owner", "admin"]);
-  const message = await alertEmail({
-    siteName: site.name,
-    siteUrl: site.url,
-    dashboardUrl: new URL(`/sites/${site.siteId}`, deps.appUrl).toString(),
-    ...content,
-  });
-  for (const to of recipients) {
-    try {
-      await deps.mailer.send({ to, ...message });
-    } catch {
-      logger.warn("alert.email.failed", { siteId: site.siteId });
-    }
-  }
-}
+const notify = (deps: MonitorDeps, site: MonitorSite, content: { headline: string; body: string; action?: string }) => notifyTeam(deps, site, content);
 
 async function inBatches<T>(items: T[], size: number, fn: (item: T) => Promise<void>) {
   for (let i = 0; i < items.length; i += size) {

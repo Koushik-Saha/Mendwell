@@ -1,7 +1,7 @@
-import { ACTIVE_STATUSES, FIXABLE_RULES, transition, type Decision, type FixCategory, type FixEvent, type OrgId } from "@mendwell/core";
+import { ACTIVE_STATUSES, FIXABLE_RULES, transition, unsafeOrgId, type Decision, type FixCategory, type FixEvent, type OrgId } from "@mendwell/core";
 import { and, asc, count, desc, eq, gt, inArray, isNull, lt, ne, notExists, or, sql, sum } from "drizzle-orm";
 import type { Db } from "../db";
-import { aiUsage, approvals, auditLog, fixes, issues } from "../schema";
+import { aiUsage, approvals, auditLog, fixes, issues, sites } from "../schema";
 import type { Actor } from "./orgs";
 import { first, isUuid } from "./util";
 
@@ -10,6 +10,9 @@ type NewFix = Pick<
   typeof fixes.$inferInsert,
   "siteId" | "issueId" | "category" | "bucketAtCreation" | "proposedValue" | "generatorModel" | "promptVersion" | "validation" | "costUsd"
 >;
+
+/** Bookkeeping columns a transition may set together with the status (never the value fields). */
+export type FixExtra = Partial<Pick<FixRow, "beforeValue" | "connectorLogId" | "verification" | "verifyAttempts">>;
 
 /** Thrown when a fix changed status between reading and writing (another run got there first). */
 export class FixStateConflictError extends Error {
@@ -42,7 +45,7 @@ export function fixRecordsRepo(db: Db) {
      * status doesn't allow, and FixStateConflictError if the status changed underneath us.
      * Returns null when the fix doesn't exist in this org.
      */
-    transition: async (orgId: OrgId, fixId: string, event: FixEvent, actor: Actor, now = new Date()): Promise<FixRow | null> => {
+    transition: async (orgId: OrgId, fixId: string, event: FixEvent, actor: Actor, now = new Date(), extra: FixExtra = {}): Promise<FixRow | null> => {
       if (!isUuid(fixId)) return null;
       return db.transaction(async (tx) => {
         const current = first(await tx.select().from(fixes).where(and(eq(fixes.orgId, orgId), eq(fixes.id, fixId))).limit(1));
@@ -51,7 +54,7 @@ export function fixRecordsRepo(db: Db) {
         const updated = first(
           await tx
             .update(fixes)
-            .set({ status: result.to, ...result.patch, updatedAt: now })
+            .set({ ...pickExtra(extra), status: result.to, ...result.patch, updatedAt: now })
             .where(and(eq(fixes.orgId, orgId), eq(fixes.id, fixId), eq(fixes.status, result.from)))
             .returning(),
         );
@@ -59,6 +62,27 @@ export function fixRecordsRepo(db: Db) {
         await tx.insert(auditLog).values({ orgId, actor, ...result.audit, at: now });
         return updated;
       });
+    },
+
+    /** A verification attempt that didn't pass yet: count it, keep the latest observation, stay in verifying. */
+    recordVerifyAttempt: async (orgId: OrgId, fixId: string, attempt: number, verification: unknown) => {
+      if (!isUuid(fixId)) return null;
+      return first(
+        await db
+          .update(fixes)
+          .set({ verifyAttempts: attempt, verification, updatedAt: new Date() })
+          .where(and(eq(fixes.orgId, orgId), eq(fixes.id, fixId), eq(fixes.status, "verifying")))
+          .returning(),
+      );
+    },
+
+    /** Writes to customer sites in the org since `since` (the anomaly guard, SECURITY.md T2). */
+    writesSince: async (orgId: OrgId, since: Date) => {
+      const [row] = await db
+        .select({ n: count() })
+        .from(fixes)
+        .where(and(eq(fixes.orgId, orgId), gt(fixes.appliedAt, since)));
+      return row?.n ?? 0;
     },
 
     /** Automatic writes for the site since `since` (the daily cap, PROJECT_SPEC §5.4). */
@@ -131,6 +155,43 @@ export function fixRecordsRepo(db: Db) {
         .limit(limit);
       return rows.map((r) => r.decision);
     },
+  };
+}
+
+function pickExtra(extra: FixExtra): FixExtra {
+  const out: FixExtra = {};
+  if (extra.beforeValue !== undefined) out.beforeValue = extra.beforeValue;
+  if (extra.connectorLogId !== undefined) out.connectorLogId = extra.connectorLogId;
+  if (extra.verification !== undefined) out.verification = extra.verification;
+  if (extra.verifyAttempts !== undefined) out.verifyAttempts = extra.verifyAttempts;
+  return out;
+}
+
+/**
+ * SYSTEM-LEVEL, worker only (the fix sweeper). Deliberately NOT org-scoped: it finds work across
+ * every org and returns each row's OrgId, so everything downstream goes back through org-scoped
+ * repositories. Never import this in apps/web.
+ */
+export function systemFixesRepo(db: Db) {
+  return {
+    /** Approved fixes on active sites that aren't paused, plus fixes stuck mid-flight since `stuckBefore`. */
+    needingWork: async (stuckBefore: Date, limit = 200) =>
+      (
+        await db
+          .select({ orgId: fixes.orgId, fixId: fixes.id, siteId: fixes.siteId, status: fixes.status, verifyAttempts: fixes.verifyAttempts })
+          .from(fixes)
+          .innerJoin(sites, and(eq(sites.id, fixes.siteId), eq(sites.orgId, fixes.orgId)))
+          .where(
+            and(
+              eq(sites.status, "active"),
+              eq(sites.writesPaused, false),
+              eq(sites.connection, "connector"),
+              or(inArray(fixes.status, ["approved", "edited"]), and(inArray(fixes.status, ["applying", "applied", "verifying", "verify_failed", "rolling_back"]), lt(fixes.updatedAt, stuckBefore))),
+            ),
+          )
+          .orderBy(fixes.updatedAt)
+          .limit(limit)
+      ).map((r) => ({ ...r, orgId: unsafeOrgId(r.orgId) })),
   };
 }
 

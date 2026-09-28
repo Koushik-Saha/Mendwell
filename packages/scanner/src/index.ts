@@ -1,4 +1,4 @@
-export { AXE_RULES, runAxe, wcagRefs } from "./checks/axe";
+export { AXE_RULES, axeImageAlt, runAxe, wcagRefs } from "./checks/axe";
 export { checkLink, checkLinks, type LinkCache, type LinkStatus } from "./checks/links";
 export { checkMeta, checkOpenGraph, DESCRIPTION_MAX, TITLE_MAX } from "./checks/meta";
 export { checkSsl, classifyCertificate, readCertificate, type CertificateInfo } from "./checks/ssl";

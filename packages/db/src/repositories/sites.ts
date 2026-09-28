@@ -77,6 +77,9 @@ export function sitesRepo(db: Db) {
       isUuid(id)
         ? first(await db.update(sites).set({ secretEnc: null, connection: "none" }).where(scoped(orgId, id)).returning(publicSiteColumns))
         : null,
+    /** Anomaly guard (SECURITY.md T2): stop writes on every site in the org. Returns the sites it paused. */
+    pauseAllWrites: async (orgId: OrgId) =>
+      db.update(sites).set({ writesPaused: true }).where(and(eq(sites.orgId, orgId), eq(sites.writesPaused, false))).returning({ id: sites.id, name: sites.name, url: sites.url }),
     getConnectorSecret: async (orgId: OrgId, id: string) =>
       isUuid(id) ? first(await db.select({ secretEnc: sites.secretEnc }).from(sites).where(scoped(orgId, id)).limit(1)) : null,
   };

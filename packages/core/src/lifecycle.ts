@@ -21,6 +21,8 @@ export type FixEvent =
   | { type: "edit"; value: unknown }
   | { type: "reject"; reason?: string }
   | { type: "start_apply" }
+  /** The site refused before anything was written (paused, unreachable): back in line to apply later. */
+  | { type: "requeue"; reason: string }
   | { type: "applied" }
   | { type: "apply_failed"; reason: string }
   | { type: "conflict"; reason?: string }
@@ -41,6 +43,7 @@ const RULES: Record<FixEventType, { from: readonly FixStatus[]; to: FixStatus }>
   edit: { from: ["pending"], to: "edited" },
   reject: { from: ["pending"], to: "rejected" },
   start_apply: { from: ["approved", "edited"], to: "applying" },
+  requeue: { from: ["applying"], to: "approved" },
   applied: { from: ["applying"], to: "applied" },
   apply_failed: { from: ["applying"], to: "apply_failed" },
   // The site changed since we looked (before a write), or since we wrote (before an undo).
@@ -126,6 +129,7 @@ export function transition(fix: { id: string; status: FixStatus; proposedValue: 
       patch.undoneAt = now;
       break;
     case "reject":
+    case "requeue":
     case "apply_failed":
     case "conflict":
     case "supersede":
