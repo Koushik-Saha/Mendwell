@@ -250,6 +250,19 @@ const cases: Record<RouteKey, Case> = {
     kind: "exempt",
     reason: "Called by Mailtrap: the Mailtrap-Signature HMAC over the raw body is the authentication, and it only marks our own report ids opened (reports.test.ts).",
   },
+  "DELETE /api/sites/[id]": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 204 },
+  "POST /api/billing/checkout": {
+    kind: "exempt",
+    reason: "Takes no id: it acts only on the caller's active org, and only for its owner (billing.test.ts). A forged org cookie fails membership first.",
+  },
+  "POST /api/billing/portal": {
+    kind: "exempt",
+    reason: "Takes no id: opens the portal for the caller's active org's own Stripe customer, owner only (billing.test.ts).",
+  },
+  "POST /api/webhooks/stripe": {
+    kind: "exempt",
+    reason: "Called by Stripe: the Stripe-Signature over the raw body is the authentication, and the org comes from our own metadata on the subscription (billing.test.ts).",
+  },
   "POST /api/connector/pair": {
     kind: "exempt",
     reason:

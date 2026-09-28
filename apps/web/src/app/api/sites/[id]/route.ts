@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { parseJson, routeId, route, type RouteContext } from "@/lib/server/http";
-import { getSite, latestScan, updateSiteSettings } from "@/lib/server/services/sites";
+import { archiveSite, getSite, latestScan, updateSiteSettings } from "@/lib/server/services/sites";
 import { requireOrgRole } from "@/lib/server/session";
 
 export const GET = route(async (req, { params }: RouteContext<{ id: string }>) => {
@@ -50,4 +50,12 @@ export const PATCH = route(async (req, { params }: RouteContext<{ id: string }>)
   const ctx = await requireOrgRole(req.headers, "member");
   const site = await updateSiteSettings(ctx, id, input);
   return NextResponse.json({ site: { id: site?.id, protectedPaths: site?.protectedPaths, dailyWriteCap: site?.dailyWriteCap, reportRecipients: site?.reportRecipients } });
+});
+
+/** Archive the site (admin, checked after the lookup so another org's site is a 404). */
+export const DELETE = route(async (req, { params }: RouteContext<{ id: string }>) => {
+  const id = await routeId(params);
+  const ctx = await requireOrgRole(req.headers, "member");
+  await archiveSite(ctx, id);
+  return new NextResponse(null, { status: 204 });
 });

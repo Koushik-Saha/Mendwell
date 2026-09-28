@@ -17,6 +17,8 @@ const schema = z
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
     /** Signs approval and 👍/👎 links in report emails. Same value as the web app. */
     APPROVAL_LINK_SECRET: z.string().min(32).optional(),
+    /** Fixes need a live subscription. Must be "true" in production; off in development. */
+    BILLING_ENABLED: z.enum(["true", "false"]).default("false"),
     /** The global kill switch (hard rule 3). Off unless explicitly "true". */
     WRITES_ENABLED: z.enum(["true", "false"]).default("false"),
     /** The operator's address for anomaly auto-pauses (SECURITY.md §2 Monitoring). */
@@ -32,6 +34,7 @@ const schema = z
     }
     if (env.NODE_ENV === "production") {
       if (!env.ENCRYPTION_KEYS) ctx.addIssue({ code: "custom", path: ["ENCRYPTION_KEYS"], message: "required in production" });
+      if (env.BILLING_ENABLED !== "true") ctx.addIssue({ code: "custom", path: ["BILLING_ENABLED"], message: "must be true in production" });
       if (!env.APPROVAL_LINK_SECRET) ctx.addIssue({ code: "custom", path: ["APPROVAL_LINK_SECRET"], message: "required in production" });
       if (!env.ANTHROPIC_API_KEY) ctx.addIssue({ code: "custom", path: ["ANTHROPIC_API_KEY"], message: "required in production" });
       if (!r2.every(Boolean)) ctx.addIssue({ code: "custom", path: ["R2_ACCOUNT_ID"], message: "R2 is required in production" });

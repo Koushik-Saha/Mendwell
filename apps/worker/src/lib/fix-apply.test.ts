@@ -1,6 +1,6 @@
 import { connectorSecretContext, encrypt, parseKeyring, verifySignature, type ConnectorTransport, type OrgId } from "@mendwell/core";
 import { createMemoryStore, createRepositories, type Db, type Repositories } from "@mendwell/db";
-import { alerts, fixes, issues, scans, siteCategories, sites } from "@mendwell/db/schema";
+import { alerts, fixes, issues, scans, siteCategories, sites, subscriptions } from "@mendwell/db/schema";
 import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { EmailMessage } from "@mendwell/email";
 import { eq } from "drizzle-orm";
@@ -305,6 +305,19 @@ describe("fix.apply gates", () => {
     // Retry: the plugin now says 409 (our own value is there). We don't call that a conflict.
     expect(await runFixApply(h.deps, s.payload, notFinal)).toEqual({ status: "applied", fixId: s.fixId });
     expect(await runFixVerify(h.deps, { ...s.payload, attempt: 1 }, notFinal)).toMatchObject({ status: "verified" });
+  });
+
+  it("pauses fixes while a subscription is past due or ended, and applies once it's live", async () => {
+    const s = await setup("gate-billing");
+    const fake = fakeWordPress();
+    const billed = (over: Partial<FixWorkDeps> = {}) => harness(fake, { billingEnabled: true, ...over }).deps;
+    await db.update(subscriptions).set({ status: "past_due" }).where(eq(subscriptions.orgId, s.orgId));
+    expect(await runFixApply(billed(), s.payload, notFinal)).toEqual({ status: "skipped", reason: "billing_past_due" });
+    await db.update(subscriptions).set({ status: "canceled" }).where(eq(subscriptions.orgId, s.orgId));
+    expect(await runFixApply(billed(), s.payload, notFinal)).toEqual({ status: "skipped", reason: "billing_ended" });
+    expect(fake.wp.calls.filter((c) => c.includes("/fix/"))).toEqual([]);
+    await db.update(subscriptions).set({ status: "active" }).where(eq(subscriptions.orgId, s.orgId));
+    expect(await runFixApply(billed(), s.payload, notFinal)).toMatchObject({ status: "applied" });
   });
 
   it("ignores another org's fix", async () => {

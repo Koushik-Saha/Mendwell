@@ -1,4 +1,4 @@
-import { ANOMALY_WRITES_PER_HOUR, ConnectorError, unsafeOrgId, type ConnectorClient, type ConnectorTransport, type FixValue, type Keyring, type OrgId } from "@mendwell/core";
+import { ANOMALY_WRITES_PER_HOUR, billingState, ConnectorError, unsafeOrgId, type ConnectorClient, type ConnectorTransport, type FixValue, type Keyring, type OrgId } from "@mendwell/core";
 import { createRepositories, type Db, type ObjectStore } from "@mendwell/db";
 import type { Mailer } from "@mendwell/email";
 import type { Resolver, TestAllow } from "@mendwell/scanner";
@@ -18,6 +18,8 @@ export type FixWorkDeps = {
   userAgent: string;
   /** The global kill switch (WRITES_ENABLED). */
   writesEnabled: boolean;
+  /** When true, fixes need a live subscription (past_due and ended ones pause them). Off in development. */
+  billingEnabled?: boolean;
   /** Where anomaly auto-pauses are reported (the operator), if set. */
   opsEmail?: string | null;
   net?: { resolver?: Resolver; testAllow?: TestAllow };
@@ -89,6 +91,9 @@ export async function runFixApply(deps: FixWorkDeps, payload: FixTaskPayload, ru
   const requeue = async (reason: string): Promise<ApplyOutcome> => ({ status: "skipped", reason });
 
   if (!deps.writesEnabled) return requeue("writes_disabled");
+  const subscription = await repos.subscriptions.get(orgId);
+  const billing = billingState(subscription, { billingEnabled: deps.billingEnabled ?? false });
+  if (!billing.fixesAllowed) return requeue(`billing_${billing.mode}`); // scans and reports carry on
   if (site.writesPaused) return requeue("site_paused");
   if (site.status !== "active") return requeue("site_inactive");
   const connector = await siteConnector(deps, orgId, site);

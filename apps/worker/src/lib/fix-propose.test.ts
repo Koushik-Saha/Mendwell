@@ -2,7 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { connectorSecretContext, encrypt, parseKeyring, verifySignature, type ConnectorTransport, type OrgId } from "@mendwell/core";
 import { createRepositories, type Db, type Repositories } from "@mendwell/db";
-import { aiUsage, fixes, issues, scans, siteCategories, sites } from "@mendwell/db/schema";
+import { aiUsage, fixes, issues, scans, siteCategories, sites, subscriptions } from "@mendwell/db/schema";
 import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { ModelClient, ModelRequest } from "@mendwell/generators";
 import { eq } from "drizzle-orm";
@@ -320,6 +320,12 @@ describe("runFixPropose guards", () => {
     expect(await runFixPropose(deps({ keyring: null }), on)).toEqual({ status: "skipped", reason: "no_secret" });
     const other = await seedOrgGraph(db, "propose-other");
     expect(await runFixPropose(deps(), { ...on, orgId: other.orgId })).toEqual({ status: "skipped", reason: "site_not_found" });
+  });
+
+  it("spends no AI when the subscription doesn't allow fixes", async () => {
+    const s = await setup("propose-billing");
+    await db.update(subscriptions).set({ status: "past_due" }).where(eq(subscriptions.orgId, s.orgId));
+    expect(await runFixPropose(deps({ billingEnabled: true }), s)).toEqual({ status: "skipped", reason: "billing_past_due" });
   });
 
   it("skips when the connector refuses the signature", async () => {

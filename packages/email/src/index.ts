@@ -5,6 +5,7 @@ import { AlertEmail, type AlertEmailProps } from "./templates/alert";
 import { FridayReportEmail, type FridayReportProps } from "./templates/friday-report";
 import { InvitationEmail, type InvitationEmailProps } from "./templates/invitation";
 import { MagicLinkEmail } from "./templates/magic-link";
+import { NoticeEmail, type NoticeEmailProps } from "./templates/notice";
 
 export type EmailMessage = {
   to: string;
@@ -95,6 +96,10 @@ export function invitationEmail(input: InvitationEmailProps) {
 
 export function alertEmail(input: AlertEmailProps) {
   return build(`${input.siteName}: ${input.headline}`, AlertEmail(input));
+}
+
+export function noticeEmail(input: NoticeEmailProps & { subject: string }) {
+  return build(input.subject, NoticeEmail(input));
 }
 
 export function fridayReportEmail(input: FridayReportProps) {

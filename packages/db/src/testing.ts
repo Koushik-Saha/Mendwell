@@ -1,3 +1,8 @@
+import { createHash, randomBytes } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import { readFile, rename, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unsafeOrgId } from "@mendwell/core";
 import { PGlite } from "@electric-sql/pglite";
@@ -8,14 +13,55 @@ import * as schema from "./schema";
 
 export const MIGRATIONS_DIR = fileURLToPath(new URL("../migrations", import.meta.url));
 
+/** Hash of every migration file: a new or edited migration means a new snapshot. */
+function migrationsHash(): string {
+  const hash = createHash("sha256");
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else hash.update(entry.name).update(readFileSync(path));
+    }
+  };
+  walk(MIGRATIONS_DIR);
+  return hash.digest("hex").slice(0, 16);
+}
+
+let snapshotPromise: Promise<Blob> | undefined;
+
+/**
+ * An empty database with every migration applied, as a PGlite data-dir dump. Built once and
+ * cached in the temp dir (keyed by the migrations), so each test file loads it in ~0.2 s instead
+ * of migrating from scratch; many suites booting in parallel otherwise starve each other.
+ */
+function migratedSnapshot(): Promise<Blob> {
+  snapshotPromise ??= (async () => {
+    const file = join(tmpdir(), `mendwell-pglite-${migrationsHash()}.tar`);
+    try {
+      return new Blob([await readFile(file)]);
+    } catch {
+      // not built yet
+    }
+    const client = new PGlite();
+    await migrate(drizzle({ client, schema }), { migrationsFolder: MIGRATIONS_DIR });
+    const dump = await client.dumpDataDir("none");
+    await client.close();
+    // Atomic: parallel test workers may race to write the same snapshot.
+    const partial = `${file}.${process.pid}.${randomBytes(4).toString("hex")}`;
+    await writeFile(partial, Buffer.from(await dump.arrayBuffer()));
+    await rename(partial, file);
+    return dump;
+  })();
+  return snapshotPromise;
+}
+
 /**
  * A real, empty Postgres (PGlite, in-process) with every migration applied.
  * Tests exercise the same SQL, constraints and foreign keys as Neon.
  */
 export async function createTestDb(): Promise<{ db: Db; client: PGlite; close: () => Promise<void> }> {
-  const client = new PGlite();
+  const client = new PGlite({ loadDataDir: await migratedSnapshot() });
   const db = drizzle({ client, schema });
-  await migrate(db, { migrationsFolder: MIGRATIONS_DIR });
   return { db, client, close: () => client.close() };
 }
 

@@ -15,7 +15,7 @@ function Wordmark() {
   );
 }
 
-export function AppShell({ children, account }: { children: React.ReactNode; account: Account }) {
+export function AppShell({ children, account, banner, fixesBlockedByBilling = false }: { children: React.ReactNode; account: Account; banner?: React.ReactNode; fixesBlockedByBilling?: boolean }) {
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[15rem_1fr]">
       <a
@@ -35,7 +35,7 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
         <div className="space-y-4 border-t border-border px-2 pt-4">
           <AccountMenu account={account} />
           <Suspense fallback={<div className="h-10" />}>
-            <WritesStatus />
+            <WritesStatus billingBlocked={fixesBlockedByBilling} />
           </Suspense>
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Theme</span>
@@ -58,7 +58,10 @@ export function AppShell({ children, account }: { children: React.ReactNode; acc
       </header>
 
       <main id="main" tabIndex={-1} className="min-w-0 px-4 py-6 outline-none sm:px-8 md:py-8 lg:px-12">
-        <div className="mx-auto max-w-5xl">{children}</div>
+        <div className="mx-auto max-w-5xl">
+          {banner}
+          {children}
+        </div>
       </main>
     </div>
   );

@@ -23,6 +23,7 @@ function fixWorkDeps(): FixWorkDeps {
     appUrl: d.env.APP_URL,
     userAgent: d.userAgent,
     writesEnabled: d.env.WRITES_ENABLED === "true",
+    billingEnabled: d.env.BILLING_ENABLED === "true",
     opsEmail: d.env.OPS_ALERT_EMAIL ?? null,
     queue: { verify: (payload, delaySeconds) => enqueueVerify(payload, delaySeconds) },
   };

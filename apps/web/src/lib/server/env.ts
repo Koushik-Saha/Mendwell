@@ -23,6 +23,10 @@ const schema = z
     DEV_NET_ALLOW: z.string().regex(/^(\d{1,3}(\.\d{1,3}){3}:\d{1,5})(,\d{1,3}(\.\d{1,3}){3}:\d{1,5})*$/, "must be ip:port[,ip:port]").optional(),
     /** Signs one-time approval links in emails (SECURITY.md T10). Same value in the worker. */
     APPROVAL_LINK_SECRET: z.string().min(32, "must be at least 32 characters (openssl rand -base64 32)").optional(),
+    /** Fixes and extra sites need a subscription. Must be "true" in production; needs the Stripe keys. */
+    BILLING_ENABLED: z.enum(["true", "false"]).default("false"),
+    STRIPE_SECRET_KEY: z.string().regex(/^(sk|rk)_(test|live)_/, "must be a Stripe secret or restricted key").optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_", "must start with whsec_").optional(),
     /** Mailtrap webhook signing secret (report open tracking). Events are refused without it. */
     MAILTRAP_WEBHOOK_SECRET: z.string().min(16).optional(),
     /** Trigger.dev secret key: needed to start scans from the app. */
@@ -44,7 +48,11 @@ const schema = z
     if (Boolean(env.ENCRYPTION_KEYS) !== Boolean(env.ENCRYPTION_ACTIVE_KID)) {
       ctx.addIssue({ code: "custom", path: ["ENCRYPTION_ACTIVE_KID"], message: "set ENCRYPTION_KEYS and ENCRYPTION_ACTIVE_KID together" });
     }
+    if (env.BILLING_ENABLED === "true" && (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET)) {
+      ctx.addIssue({ code: "custom", path: ["STRIPE_SECRET_KEY"], message: "STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are required when BILLING_ENABLED is true" });
+    }
     if (env.NODE_ENV === "production") {
+      if (env.BILLING_ENABLED !== "true") ctx.addIssue({ code: "custom", path: ["BILLING_ENABLED"], message: "must be true in production" });
       if (env.DEV_NET_ALLOW) ctx.addIssue({ code: "custom", path: ["DEV_NET_ALLOW"], message: "must be unset in production" });
       if (!env.ENCRYPTION_KEYS) ctx.addIssue({ code: "custom", path: ["ENCRYPTION_KEYS"], message: "required in production" });
       if (!env.TRIGGER_SECRET_KEY) ctx.addIssue({ code: "custom", path: ["TRIGGER_SECRET_KEY"], message: "required in production" });

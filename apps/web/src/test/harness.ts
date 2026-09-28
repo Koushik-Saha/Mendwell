@@ -8,6 +8,7 @@ import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { EmailMessage } from "@mendwell/email";
 import { NextRequest } from "next/server";
 import { createAuth, type Auth } from "@/lib/server/auth";
+import type { BillingGateway } from "@/lib/server/stripe";
 import { setServerContextForTests, type ApplyJob, type ReportJob, type ScanJob } from "@/lib/server/context";
 import { ACTIVE_ORG_COOKIE } from "@/lib/server/session";
 
@@ -39,6 +40,7 @@ export async function createHarness() {
   const keyring = parseKeyring({ ENCRYPTION_KEYS: JSON.stringify({ t1: randomBytes(32).toString("base64") }), ENCRYPTION_ACTIVE_KID: "t1" });
   // Tests open individual local ports for fake WordPress sites with allowPort().
   const net = { testAllow: { addresses: ["127.0.0.1"], ports: [] as number[] }, resolver: undefined as undefined | ((h: string) => Promise<{ address: string; family: 4 | 6 }[]>) };
+  const billing: { enabled: boolean; gateway: BillingGateway | null; appUrl: string } = { enabled: false, gateway: null, appUrl: BASE_URL };
   setServerContextForTests({
     env: { BETTER_AUTH_URL: BASE_URL },
     db,
@@ -58,6 +60,8 @@ export async function createHarness() {
     feedbackKey: derivedKey("test-approval-link-secret-at-least-32-chars", "report-feedback:v1"),
     mailtrapWebhookSecret: MAILTRAP_WEBHOOK_SECRET,
     enqueueReport: async (job) => void reportJobs.push(job),
+    // Off by default, like development; billing tests switch it on with a fake gateway.
+    billing,
   });
   const test = (await auth.$context).test;
 
@@ -131,6 +135,11 @@ export async function createHarness() {
     addMember,
     call,
     seedOrg: (label = uniq("org")) => seedOrgGraph(db, label),
+    /** Turn billing on (with a fake Stripe) or back off. */
+    setBilling: (gateway: BillingGateway | null) => {
+      billing.enabled = gateway !== null;
+      billing.gateway = gateway;
+    },
     close: async () => {
       setServerContextForTests(undefined);
       await close();

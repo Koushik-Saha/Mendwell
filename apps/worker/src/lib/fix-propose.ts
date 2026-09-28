@@ -1,6 +1,7 @@
 import {
   AI_DAILY_GENERATIONS_PER_ORG,
   AI_GENERATIONS_PER_RUN,
+  billingState,
   connectorSecretContext,
   ConnectorError,
   createConnectorClient,
@@ -49,6 +50,8 @@ export type ProposeDeps = {
   browser?: Browser;
   /** Tests inject a transport that talks to a fake connector. */
   connectorTransport?: ConnectorTransport;
+  /** When true, proposals (which spend AI) need a subscription that allows fixes. */
+  billingEnabled?: boolean;
   now?: () => Date;
 };
 
@@ -95,6 +98,8 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
   if (!site) return { status: "skipped", reason: "site_not_found" };
   if (site.status === "archived") return { status: "skipped", reason: "site_archived" };
   if (site.connection !== "connector" || !site.ownershipVerifiedAt) return { status: "skipped", reason: "not_connected" };
+  const billing = billingState(await repos.subscriptions.get(orgId), { billingEnabled: deps.billingEnabled ?? false });
+  if (!billing.fixesAllowed) return { status: "skipped", reason: `billing_${billing.mode}` };
   const stored = await repos.sites.getConnectorSecret(orgId, site.id);
   if (!stored?.secretEnc || !deps.keyring) return { status: "skipped", reason: "no_secret" };
 

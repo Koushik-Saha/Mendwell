@@ -50,6 +50,6 @@ export const approvalDecisions = ["approved", "edited", "rejected"] as const;
 
 export const alertSeverities = ["info", "warning", "critical"] as const;
 
-export const subscriptionStatuses = ["trialing", "active", "past_due", "canceled", "incomplete", "unpaid"] as const;
+export const subscriptionStatuses = ["trialing", "active", "past_due", "canceled", "incomplete", "unpaid", "paused", "incomplete_expired"] as const;
 
 export const invitationStatuses = ["pending", "accepted", "revoked"] as const;

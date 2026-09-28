@@ -7,6 +7,7 @@ import type { SafeFetchOptions } from "@mendwell/scanner/net";
 import { createAuth, MAGIC_LINK_TTL_SECONDS, type Auth } from "./auth";
 import { parseServerEnv, type ServerEnv } from "./env";
 import { AppError } from "./errors";
+import { createStripeGateway, type BillingGateway } from "./stripe";
 import { createMailer } from "./mailer";
 
 export type ScanJob = { orgId: string; siteId: string; scanId: string; kind: "manual" };
@@ -42,6 +43,8 @@ export type ServerContext = {
   mailtrapWebhookSecret: string | null;
   /** Start report.site (a test report to one person). */
   enqueueReport: (job: ReportJob) => Promise<void>;
+  /** Billing: off in development (nothing is limited); on in production with Stripe. */
+  billing: { enabled: boolean; gateway: BillingGateway | null; appUrl: string };
 };
 
 function reportEnqueuer(env: ServerEnv): ServerContext["enqueueReport"] {
@@ -122,6 +125,11 @@ function build(): ServerContext {
     feedbackKey: env.APPROVAL_LINK_SECRET ? derivedKey(env.APPROVAL_LINK_SECRET, "report-feedback:v1") : null,
     mailtrapWebhookSecret: env.MAILTRAP_WEBHOOK_SECRET ?? null,
     enqueueReport: reportEnqueuer(env),
+    billing: {
+      enabled: env.BILLING_ENABLED === "true",
+      gateway: env.BILLING_ENABLED === "true" && env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET ? createStripeGateway({ secretKey: env.STRIPE_SECRET_KEY, webhookSecret: env.STRIPE_WEBHOOK_SECRET }) : null,
+      appUrl: env.BETTER_AUTH_URL,
+    },
   };
 }
 

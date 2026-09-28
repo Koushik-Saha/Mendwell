@@ -1,7 +1,8 @@
-import { hasRole, type IssueCategory } from "@mendwell/core";
+import { canAddSite, hasRole, type IssueCategory } from "@mendwell/core";
 import { server } from "../context";
 import { AppError, notFound } from "../errors";
 import type { OrgContext } from "../session";
+import { orgBillingState, syncSiteQuantity } from "./billing";
 
 const issueCategories = ["accessibility", "seo", "links", "uptime", "ssl", "performance"] as const;
 
@@ -159,7 +160,27 @@ export async function createSite(ctx: OrgContext, input: SiteInput) {
   if (!hasRole(ctx.role, "admin")) throw new AppError("forbidden", "Only admins and owners can add sites.", 403);
   const url = normalizeSiteUrl(input.url, { requireHttps: process.env.NODE_ENV === "production" });
   const existing = (await repos.sites.list(ctx.orgId)).find((s) => s.url === url);
-  if (existing) throw new AppError("conflict", "That site is already in this workspace.", 409);
+  if (existing && existing.status !== "archived") throw new AppError("conflict", "That site is already in this workspace.", 409);
+  // Site limits by plan: one site before the trial, none while a payment is overdue, then billed per site.
+  const billing = await orgBillingState(ctx.orgId);
+  if (!canAddSite(billing, await repos.subscriptions.activeSiteCount(ctx.orgId))) {
+    throw new AppError(
+      "conflict",
+      billing.mode === "past_due"
+        ? "Update your payment details to add more sites."
+        : billing.mode === "none" || billing.mode === "incomplete" || billing.mode === "ended"
+          ? "Start your free trial to add more than one site."
+          : "Your plan doesn't allow more sites.",
+      402,
+    );
+  }
+  if (existing) {
+    // Re-adding an archived site brings it back, with its history.
+    const restored = await repos.sites.update(ctx.orgId, existing.id, { status: "active" });
+    await repos.audit.record(ctx.orgId, { actor: `user:${ctx.user.id}`, action: "site.restored", entity: "site", entityId: existing.id });
+    await syncSiteQuantity(ctx.orgId);
+    return restored ?? existing;
+  }
   const site = await repos.sites.create(ctx.orgId, {
     url,
     name: input.name?.trim() || new URL(url).hostname.replace(/^www\./, ""),
@@ -167,7 +188,22 @@ export async function createSite(ctx: OrgContext, input: SiteInput) {
   });
   if (!site) throw new Error("site insert returned no row");
   await repos.audit.record(ctx.orgId, { actor: `user:${ctx.user.id}`, action: "site.created", entity: "site", entityId: site.id });
+  await syncSiteQuantity(ctx.orgId);
   return site;
+}
+
+/**
+ * Archive a site (admin+): no more scans, reports or changes, and it stops counting toward
+ * billing. Its history stays; adding the same address again restores it.
+ */
+export async function archiveSite(ctx: OrgContext, siteId: string) {
+  const { repos } = server();
+  const site = await getSite(ctx, siteId);
+  if (!hasRole(ctx.role, "admin")) throw new AppError("forbidden", "Only admins and owners can remove sites.", 403);
+  if (site.status === "archived") return;
+  await repos.sites.update(ctx.orgId, site.id, { status: "archived", writesPaused: true });
+  await repos.audit.record(ctx.orgId, { actor: `user:${ctx.user.id}`, action: "site.archived", entity: "site", entityId: site.id });
+  await syncSiteQuantity(ctx.orgId);
 }
 
 export type SiteSettings = {

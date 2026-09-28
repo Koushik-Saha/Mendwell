@@ -433,10 +433,22 @@ export const subscriptions = pgTable(
     status: subscriptionStatusEnum("status").notNull(),
     trialEndsAt: timestamptz("trial_ends_at"),
     coupon: text("coupon"),
+    currentPeriodEnd: timestamptz("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
     ...timestamps,
   },
   (t) => [index("subscriptions_status_idx").on(t.status)],
 );
+
+/**
+ * Stripe webhook events already handled (SECURITY.md T11: idempotent by event id). Not tenant
+ * data: Stripe's ids, no content.
+ */
+export const stripeEvents = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  processedAt: timestamptz("processed_at").notNull().defaultNow(),
+});
 
 export const pairingCodes = pgTable(
   "pairing_codes",
