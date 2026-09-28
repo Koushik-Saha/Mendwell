@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:cross-org": "vitest run src/test/cross-org.test.ts",
-    "stripe:setup": "node scripts/stripe-setup.mjs"
+    "stripe:setup": "node scripts/stripe-setup.mjs",
+    "check:claims": "node scripts/check-claims.mjs"
   },
   "dependencies": {
     "@mendwell/core": "workspace:*",

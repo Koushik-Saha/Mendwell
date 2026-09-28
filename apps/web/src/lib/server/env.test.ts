@@ -11,7 +11,7 @@ const prod = { ...base, NODE_ENV: "production", BETTER_AUTH_URL: "https://app.me
 const mailtrap = { MAILTRAP_TOKEN: "tok", EMAIL_FROM: "Mendwell <noreply@koushiksaha.dev>" };
 const r2 = { R2_ACCOUNT_ID: "acc", R2_ACCESS_KEY_ID: "key", R2_SECRET_ACCESS_KEY: "secret", R2_BUCKET: "evidence" };
 const keys = { ENCRYPTION_KEYS: JSON.stringify({ k1: Buffer.alloc(32, 1).toString("base64") }), ENCRYPTION_ACTIVE_KID: "k1" };
-const prodReady = { ...prod, ...mailtrap, ...r2, ...keys, TRIGGER_SECRET_KEY: "tr_prod_x", APPROVAL_LINK_SECRET: "z".repeat(40), BILLING_ENABLED: "true", STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: "whsec_x" };
+const prodReady = { ...prod, ...mailtrap, ...r2, ...keys, TRIGGER_SECRET_KEY: "tr_prod_x", APPROVAL_LINK_SECRET: "z".repeat(40), BILLING_ENABLED: "true", STRIPE_SECRET_KEY: "sk_live_x", STRIPE_WEBHOOK_SECRET: "whsec_x", TURNSTILE_SECRET: "ts", NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4" };
 
 describe("parseServerEnv", () => {
   it("accepts a minimal development env", () => {
@@ -46,6 +46,7 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv({ ...prodReady, TRIGGER_SECRET_KEY: undefined })).toThrow(/TRIGGER_SECRET_KEY: required in production/);
     expect(() => parseServerEnv({ ...prodReady, R2_BUCKET: undefined })).toThrow(/R2/);
     expect(() => parseServerEnv({ ...prodReady, APPROVAL_LINK_SECRET: undefined })).toThrow(/APPROVAL_LINK_SECRET: required in production/);
+    expect(() => parseServerEnv({ ...prodReady, TURNSTILE_SECRET: undefined })).toThrow(/TURNSTILE_SECRET and NEXT_PUBLIC_TURNSTILE_SITE_KEY are required/);
     expect(() => parseServerEnv({ ...prodReady, BILLING_ENABLED: "false" })).toThrow(/BILLING_ENABLED: must be true in production/);
     expect(() => parseServerEnv({ ...base, BILLING_ENABLED: "true" })).toThrow(/STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are required/);
     expect(() => parseServerEnv({ ...base, STRIPE_SECRET_KEY: "pk_test_publishable" })).toThrow(/Stripe secret/);

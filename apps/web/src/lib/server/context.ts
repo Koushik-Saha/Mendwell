@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { createRepositories, type Db, type Repositories } from "@mendwell/db";
 import { createDb } from "@mendwell/db/client";
 import { createR2Store, createUnconfiguredStore, type ObjectStore } from "@mendwell/db/storage";
@@ -43,9 +44,37 @@ export type ServerContext = {
   mailtrapWebhookSecret: string | null;
   /** Start report.site (a test report to one person). */
   enqueueReport: (job: ReportJob) => Promise<void>;
+  /** Start scan.public for a public_scans row. */
+  enqueuePublicScan: (publicScanId: string) => Promise<void>;
+  /** Cloudflare Turnstile check; null = not configured (development: allowed, logged). */
+  verifyTurnstile: ((token: string, ip: string | null) => Promise<boolean>) | null;
+  /** Salted, one-way hash of a visitor's IP for rate limits (never stored raw). */
+  hashIp: (ip: string) => string;
   /** Billing: off in development (nothing is limited); on in production with Stripe. */
   billing: { enabled: boolean; gateway: BillingGateway | null; appUrl: string };
 };
+
+function publicScanEnqueuer(env: ServerEnv): ServerContext["enqueuePublicScan"] {
+  return async (publicScanId) => {
+    if (!env.TRIGGER_SECRET_KEY) throw new AppError("scans_unavailable", "Free scans aren't set up on this server yet.", 503);
+    const { configure, tasks } = await import("@trigger.dev/sdk");
+    configure({ secretKey: env.TRIGGER_SECRET_KEY });
+    await tasks.trigger("scan.public", { publicScanId }, { idempotencyKey: `public:${publicScanId}` });
+  };
+}
+
+function turnstileVerifier(secret: string): NonNullable<ServerContext["verifyTurnstile"]> {
+  return async (token, ip) => {
+    const body = new URLSearchParams({ secret, response: token, ...(ip ? { remoteip: ip } : {}) });
+    try {
+      const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body, signal: AbortSignal.timeout(10_000) });
+      const json = (await res.json()) as { success?: boolean };
+      return json.success === true;
+    } catch {
+      return false;
+    }
+  };
+}
 
 function reportEnqueuer(env: ServerEnv): ServerContext["enqueueReport"] {
   return async (job) => {
@@ -125,6 +154,9 @@ function build(): ServerContext {
     feedbackKey: env.APPROVAL_LINK_SECRET ? derivedKey(env.APPROVAL_LINK_SECRET, "report-feedback:v1") : null,
     mailtrapWebhookSecret: env.MAILTRAP_WEBHOOK_SECRET ?? null,
     enqueueReport: reportEnqueuer(env),
+    enqueuePublicScan: publicScanEnqueuer(env),
+    verifyTurnstile: env.TURNSTILE_SECRET ? turnstileVerifier(env.TURNSTILE_SECRET) : null,
+    hashIp: (ip) => createHmac("sha256", env.BETTER_AUTH_SECRET).update(`ip-hash:v1:${ip}`).digest("hex").slice(0, 32),
     billing: {
       enabled: env.BILLING_ENABLED === "true",
       gateway: env.BILLING_ENABLED === "true" && env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET ? createStripeGateway({ secretKey: env.STRIPE_SECRET_KEY, webhookSecret: env.STRIPE_WEBHOOK_SECRET }) : null,

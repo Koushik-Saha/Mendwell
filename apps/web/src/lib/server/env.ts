@@ -23,6 +23,9 @@ const schema = z
     DEV_NET_ALLOW: z.string().regex(/^(\d{1,3}(\.\d{1,3}){3}:\d{1,5})(,\d{1,3}(\.\d{1,3}){3}:\d{1,5})*$/, "must be ip:port[,ip:port]").optional(),
     /** Signs one-time approval links in emails (SECURITY.md T10). Same value in the worker. */
     APPROVAL_LINK_SECRET: z.string().min(32, "must be at least 32 characters (openssl rand -base64 32)").optional(),
+    /** Cloudflare Turnstile (public scan and bot opt-out forms). Both required in production. */
+    TURNSTILE_SECRET: z.string().min(1).optional(),
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
     /** Fixes and extra sites need a subscription. Must be "true" in production; needs the Stripe keys. */
     BILLING_ENABLED: z.enum(["true", "false"]).default("false"),
     STRIPE_SECRET_KEY: z.string().regex(/^(sk|rk)_(test|live)_/, "must be a Stripe secret or restricted key").optional(),
@@ -52,6 +55,7 @@ const schema = z
       ctx.addIssue({ code: "custom", path: ["STRIPE_SECRET_KEY"], message: "STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are required when BILLING_ENABLED is true" });
     }
     if (env.NODE_ENV === "production") {
+      if (!env.TURNSTILE_SECRET || !env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) ctx.addIssue({ code: "custom", path: ["TURNSTILE_SECRET"], message: "TURNSTILE_SECRET and NEXT_PUBLIC_TURNSTILE_SITE_KEY are required in production" });
       if (env.BILLING_ENABLED !== "true") ctx.addIssue({ code: "custom", path: ["BILLING_ENABLED"], message: "must be true in production" });
       if (env.DEV_NET_ALLOW) ctx.addIssue({ code: "custom", path: ["DEV_NET_ALLOW"], message: "must be unset in production" });
       if (!env.ENCRYPTION_KEYS) ctx.addIssue({ code: "custom", path: ["ENCRYPTION_KEYS"], message: "required in production" });

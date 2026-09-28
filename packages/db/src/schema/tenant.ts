@@ -138,6 +138,12 @@ export const publicScans = pgTable(
   ],
 );
 
+/** Hosts whose owners asked MendwellBot not to run public scans (the /bot opt-out). Not tenant data. */
+export const botOptOuts = pgTable("bot_opt_outs", {
+  host: text("host").primaryKey(),
+  createdAt: timestamptz("created_at").notNull().defaultNow(),
+});
+
 export const scans = pgTable(
   "scans",
   {

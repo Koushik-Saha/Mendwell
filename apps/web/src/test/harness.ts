@@ -37,6 +37,7 @@ export async function createHarness() {
   const enqueued: ScanJob[] = [];
   const applies: ApplyJob[] = [];
   const reportJobs: ReportJob[] = [];
+  const publicScanJobs: string[] = [];
   const keyring = parseKeyring({ ENCRYPTION_KEYS: JSON.stringify({ t1: randomBytes(32).toString("base64") }), ENCRYPTION_ACTIVE_KID: "t1" });
   // Tests open individual local ports for fake WordPress sites with allowPort().
   const net = { testAllow: { addresses: ["127.0.0.1"], ports: [] as number[] }, resolver: undefined as undefined | ((h: string) => Promise<{ address: string; family: 4 | 6 }[]>) };
@@ -62,6 +63,9 @@ export async function createHarness() {
     enqueueReport: async (job) => void reportJobs.push(job),
     // Off by default, like development; billing tests switch it on with a fake gateway.
     billing,
+    enqueuePublicScan: async (id) => void publicScanJobs.push(id),
+    verifyTurnstile: async (token) => token === "turnstile-ok",
+    hashIp: (ip) => `hash:${ip}`,
   });
   const test = (await auth.$context).test;
 
@@ -120,6 +124,7 @@ export async function createHarness() {
     enqueued,
     applies,
     reportJobs,
+    publicScanJobs,
     keyring,
     /** Let the app reach a fake site on 127.0.0.1:<port> (and resolve test hostnames to it). */
     allowPort: (port: number) => void net.testAllow.ports.push(port),

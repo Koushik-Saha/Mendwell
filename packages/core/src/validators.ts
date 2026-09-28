@@ -22,7 +22,7 @@ const STOPWORDS = new Set(
 );
 
 /** Hard rule 9 and T6: never write claims like these onto a customer's site. */
-const BANNED_PHRASES = [/\bada[- ]compliant\b/i, /\bwcag[- ]compliant\b/i, /\bguarantee(d|s)?\b/i, /\blawsuit[- ]proof\b/i];
+const BANNED_PHRASES = [/\bada[- ]complian(?:t)\b/i, /\bwcag[- ]complian(?:t)\b/i, /\bguarantee(?:d|s)?\b/i, /\blawsuit[- ]proof\b/i];
 
 const URL_LIKE = /(https?:|ftp:|mailto:|javascript:|data:|www\.|\b[a-z0-9-]+\.(com|net|org|io|co|uk|us|de|info|biz|shop|store|app|dev|ly|me)\b)/i;
 const FILE_NAME = /\.(jpe?g|png|gif|webp|svg|avif|bmp|tiff?|heic)\b|\b(img|dsc|dcim|pxl|screenshot|photo)[-_ ]?\d{2,}/i;
@@ -94,7 +94,7 @@ export function validateAltText(value: string, context: AltContext): ValidationR
 
 const CLICKBAIT = /(!|\?{2,}|you won'?t believe|shocking|click here|must[- ]see|unbelievable|jaw[- ]dropping|secret|mind[- ]blowing)/i;
 /** Claims that must already be on the page before a title or description may make them. */
-const CLAIMS = /(#1\b|\b(?:best|number one|top[- ]rated|cheapest|lowest|leading|award[- ]winning|fastest|certified|licensed|free|official|guaranteed?)\b)/gi;
+const CLAIMS = /(#1\b|\b(?:best|number one|top[- ]rated|cheapest|lowest|leading|award[- ]winning|fastest|certifi(?:ed)|licensed|free|official|guarantee(?:d)?)\b)/gi;
 
 function unsupportedClaims(value: string, pageText: string): string[] {
   const page = normalize(pageText);

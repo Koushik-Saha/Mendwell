@@ -263,6 +263,9 @@ const cases: Record<RouteKey, Case> = {
     kind: "exempt",
     reason: "Called by Stripe: the Stripe-Signature over the raw body is the authentication, and the org comes from our own metadata on the subscription (billing.test.ts).",
   },
+  "POST /api/public-scan": { kind: "exempt", reason: "The free public scan: no session and no org; public scans belong to nobody (public-scan.test.ts covers limits and Turnstile)." },
+  "GET /api/public-scan/[slug]": { kind: "exempt", reason: "Public result by unguessable share slug; public scans belong to no org and hold only public-page findings." },
+  "POST /api/bot/opt-out": { kind: "exempt", reason: "Public opt-out form for site owners: no session, no org data; only adds a host to the do-not-scan list." },
   "POST /api/connector/pair": {
     kind: "exempt",
     reason:

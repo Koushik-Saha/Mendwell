@@ -12,7 +12,7 @@ import { clientsRepo, pagesRepo, pairingCodesRepo, siteCategoriesRepo, sitesRepo
  * Every tenant repository function takes an OrgId first. Deliberate exceptions, each documented at
  * the definition: access.* (establishes membership, which is how an OrgId is obtained),
  * invitations.findPendingByTokenHash (the invitee isn't a member yet), approvalLinks.findById (a signed
- * email link, no session), and systemSitesRepo / systemFixesRepo
+ * email link, no session), publicScansRepo / botOptOutsRepo (public scans belong to no org), and systemSitesRepo / systemFixesRepo
  * (worker schedulers only; exported separately and not part of this object).
  */
 export function createRepositories(db: Db) {
@@ -53,6 +53,7 @@ export function createRepositories(db: Db) {
 export type Repositories = ReturnType<typeof createRepositories>;
 export type { Actor, AuditEntry } from "./orgs";
 export { systemReportsRepo } from "./reports";
+export { botOptOutsRepo, publicScansRepo } from "./publicScans";
 export { systemBillingRepo, type SubscriptionInput } from "./billing";
 export { FixStateConflictError, systemFixesRepo, type AiUsageEntry, type FixExtra } from "./fixes";
 export { systemSitesRepo, urlHash, type IssueRow, type ScanCounts, type ScanProgress } from "./pipeline";

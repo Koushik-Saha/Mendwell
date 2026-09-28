@@ -62,6 +62,12 @@ jobs:
       - name: Cross-org access (every API route)
         run: pnpm test:cross-org
 
+      # SECURITY.md §5: no compliance claims in anything we ship (checks the built pages and chunks).
+      - name: Build web and check for banned claims
+        run: |
+          pnpm --filter @mendwell/web build
+          pnpm --filter @mendwell/web check:claims
+
       - name: Migrations match the schema
         run: |
           pnpm db:generate

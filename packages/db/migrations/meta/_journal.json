@@ -50,6 +50,13 @@
       "when": 1790629202810,
       "tag": "0006_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790637237401,
+      "tag": "0007_public_scan",
+      "breakpoints": true
     }
   ]
 }

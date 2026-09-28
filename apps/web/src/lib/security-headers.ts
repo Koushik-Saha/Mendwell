@@ -38,7 +38,8 @@ export function buildCsp({ nonce, dev, sentryDsn }: { nonce: string; dev: boolea
     "img-src": ["'self'", "data:", "blob:"],
     "font-src": ["'self'"],
     "connect-src": connect as string[],
-    "frame-src": ["'none'"],
+    // Cloudflare Turnstile renders its challenge in an iframe (public scan and opt-out forms).
+    "frame-src": ["https://challenges.cloudflare.com"],
     "frame-ancestors": ["'none'"],
     "object-src": ["'none'"],
     "base-uri": ["'self'"],
