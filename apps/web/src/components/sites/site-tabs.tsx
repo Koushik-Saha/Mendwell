@@ -8,6 +8,8 @@ export function SiteTabs({ siteId }: { siteId: string }) {
   const pathname = usePathname();
   const tabs = [
     { href: `/sites/${siteId}`, label: "Issues" },
+    { href: `/sites/${siteId}/fixes`, label: "Fixes" },
+    { href: `/sites/${siteId}/approvals`, label: "Approvals" },
     { href: `/sites/${siteId}/settings`, label: "Settings" },
   ];
   return (

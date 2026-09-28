@@ -11,7 +11,7 @@
  */
 import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { invitations, issues, scans, sites } from "@mendwell/db/schema";
+import { fixes, invitations, issues, scans, sites } from "@mendwell/db/schema";
 import type { SeededOrg } from "@mendwell/db/testing";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
@@ -40,16 +40,53 @@ type Case =
       /** Lists data for the active org or user: B's response must not contain any of A's ids. */
       kind: "collection";
       leaks: (s: Setup) => string[];
+      prepare?: (h: Harness, s: Omit<Setup, "extra">) => Promise<Record<string, string>>;
     } & Request)
   | ({
       /** Writes to the active org: B's request must land in B, never in A. */
       kind: "scoped-write";
       controlStatus: number;
       inA: (h: Harness, s: Setup) => Promise<number>;
+      prepare?: (h: Harness, s: Omit<Setup, "extra">) => Promise<Record<string, string>>;
     } & Request)
   | { kind: "exempt"; reason: string };
 
 const orgRef = (s: Setup) => [s.a.orgId];
+
+/** A fix in `status` for org A's seeded site, on its own issue. Returns ids for params/bodies. */
+async function fixIn(h: Harness, a: SeededOrg, status: "pending" | "verified", extra: Partial<typeof fixes.$inferInsert> = {}) {
+  const [issue] = await h.db
+    .insert(issues)
+    .values({
+      orgId: a.orgId,
+      siteId: a.site.id,
+      fingerprint: h.uniq("fp"),
+      rule: "image-alt",
+      category: "accessibility",
+      severity: "serious",
+      pageUrl: `${a.site.url}/page/`,
+      target: { selector: "img" },
+      evidence: { message: "x" },
+      bucket: "approval",
+      firstScanId: a.scan.id,
+      lastScanId: a.scan.id,
+    })
+    .returning();
+  const [fix] = await h.db
+    .insert(fixes)
+    .values({
+      orgId: a.orgId,
+      siteId: a.site.id,
+      issueId: issue?.id ?? "",
+      category: "alt_text",
+      status,
+      bucketAtCreation: "approval",
+      proposedValue: { kind: "alt", attachmentId: 5, alt: "A white van", decorative: false, imageUrl: "https://a.test/van.jpg" },
+      ...extra,
+    })
+    .returning();
+  return { fixId: fix?.id ?? "" };
+}
 
 const cases: Record<RouteKey, Case> = {
   "GET /api/auth/[...all]": {
@@ -156,6 +193,52 @@ const cases: Record<RouteKey, Case> = {
   "DELETE /api/sites/[id]/connector": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 204 },
   "POST /api/sites/[id]/pause": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
   "POST /api/sites/[id]/resume": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
+  "GET /api/approvals": { kind: "collection", prepare: (h, { a }) => fixIn(h, a, "pending"), leaks: (s) => [s.extra.fixId ?? "missing", s.a.site.id] },
+  "GET /api/fixes/[id]": { kind: "resource", params: (s) => ({ id: s.a.fix.id }), controlStatus: 200 },
+  "POST /api/fixes/[id]/approve": { kind: "resource", prepare: (h, { a }) => fixIn(h, a, "pending"), params: (s) => ({ id: s.extra.fixId ?? "" }), body: () => ({}), controlStatus: 200 },
+  "POST /api/fixes/[id]/reject": {
+    kind: "resource",
+    prepare: (h, { a }) => fixIn(h, a, "pending"),
+    params: (s) => ({ id: s.extra.fixId ?? "" }),
+    body: () => ({ reason: "inaccurate" }),
+    controlStatus: 200,
+  },
+  "POST /api/fixes/[id]/undo": {
+    kind: "resource",
+    prepare: (h, { a }) => fixIn(h, a, "verified"),
+    params: (s) => ({ id: s.extra.fixId ?? "" }),
+    // Found, then refused: the seeded site has no connector to undo through.
+    controlStatus: 409,
+  },
+  "GET /api/fixes/[id]/screenshot": {
+    kind: "resource",
+    prepare: async (h, { a }) => {
+      const key = `evidence/${a.orgId}/${a.site.id}/fix-probe.png`;
+      await h.store.put(key, new Uint8Array([0x89, 0x50, 0x4e, 0x47]), "image/png");
+      return fixIn(h, a, "verified", { verification: { pass: true, screenshotKey: key } });
+    },
+    params: (s) => ({ id: s.extra.fixId ?? "" }),
+    controlStatus: 200,
+  },
+  "POST /api/fixes/batch": {
+    kind: "scoped-write",
+    prepare: (h, { a }) => fixIn(h, a, "pending"),
+    body: (s) => ({ action: "approve", ids: [s.extra.fixId] }),
+    controlStatus: 200,
+    inA: async (h, s) => (await h.db.select().from(fixes).where(and(eq(fixes.id, s.extra.fixId ?? ""), eq(fixes.status, "approved")))).length,
+  },
+  "GET /api/sites/[id]/fixes": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 200 },
+  "PATCH /api/sites/[id]/categories/[category]": {
+    kind: "resource",
+    params: (s) => ({ id: s.a.site.id, category: "alt_text" }),
+    body: () => ({ state: "approval" }),
+    controlStatus: 200,
+  },
+  "POST /api/approval-links": {
+    kind: "exempt",
+    reason:
+      "No session: the signed, single-use email token is the credential and is bound to one fix and one recipient (fix-approvals.test.ts covers forged, reused, expired and protected-page links).",
+  },
   "POST /api/connector/pair": {
     kind: "exempt",
     reason:
@@ -212,7 +295,7 @@ async function setup(c: Case): Promise<Setup & { attackers: [string, Headers][] 
   const a = await h.seedOrg();
   const b = await h.seedOrg();
   const bMember = await h.addMember(b.orgId, "member");
-  const extra = c.kind === "resource" && c.prepare ? await c.prepare(h, { a, b }) : {};
+  const extra = c.kind !== "exempt" && c.prepare ? await c.prepare(h, { a, b }) : {};
   return {
     a,
     b,

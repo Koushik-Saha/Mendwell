@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { randomBytes } from "node:crypto";
-import { parseKeyring, unsafeOrgId, type OrgId, type Role } from "@mendwell/core";
+import { approvalLinkKey, parseKeyring, unsafeOrgId, type OrgId, type Role } from "@mendwell/core";
 import { createRepositories, type Db } from "@mendwell/db";
 import { memberships, users } from "@mendwell/db/schema";
 import { createMemoryStore } from "@mendwell/db/storage";
@@ -8,7 +8,7 @@ import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { EmailMessage } from "@mendwell/email";
 import { NextRequest } from "next/server";
 import { createAuth, type Auth } from "@/lib/server/auth";
-import { setServerContextForTests, type ScanJob } from "@/lib/server/context";
+import { setServerContextForTests, type ApplyJob, type ScanJob } from "@/lib/server/context";
 import { ACTIVE_ORG_COOKIE } from "@/lib/server/session";
 
 export const BASE_URL = "http://mendwell.test";
@@ -32,6 +32,7 @@ export async function createHarness() {
   });
   const store = createMemoryStore();
   const enqueued: ScanJob[] = [];
+  const applies: ApplyJob[] = [];
   const keyring = parseKeyring({ ENCRYPTION_KEYS: JSON.stringify({ t1: randomBytes(32).toString("base64") }), ENCRYPTION_ACTIVE_KID: "t1" });
   // Tests open individual local ports for fake WordPress sites with allowPort().
   const net = { testAllow: { addresses: ["127.0.0.1"], ports: [] as number[] }, resolver: undefined as undefined | ((h: string) => Promise<{ address: string; family: 4 | 6 }[]>) };
@@ -49,6 +50,8 @@ export async function createHarness() {
       enqueued.push(job);
       return { runId: `run_test_${enqueued.length}` };
     },
+    enqueueApply: async (job) => void applies.push(job),
+    approvalLinkKey: approvalLinkKey("test-approval-link-secret-at-least-32-chars"),
   });
   const test = (await auth.$context).test;
 
@@ -105,6 +108,7 @@ export async function createHarness() {
     outbox,
     store,
     enqueued,
+    applies,
     keyring,
     /** Let the app reach a fake site on 127.0.0.1:<port> (and resolve test hostnames to it). */
     allowPort: (port: number) => void net.testAllow.ports.push(port),

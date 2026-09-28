@@ -98,7 +98,7 @@ export function SiteSettingsForm({ site, canManage }: { site: SettingsSite; canM
         <p className="max-w-[62ch] text-sm text-muted-foreground">
           {site.writesPaused
             ? "Mendwell won't change anything on this site. Scans and reports continue."
-            : "Mendwell applies fixes you approve (and, later, categories you've turned on). Pausing stops every change immediately."}
+            : "Mendwell applies the fixes you approve, and the kinds you've switched to auto-fix. Pausing stops every change immediately."}
         </p>
         {canManage ? (
           <Button variant={site.writesPaused ? "default" : "outline"} onClick={togglePause} disabled={busy}>

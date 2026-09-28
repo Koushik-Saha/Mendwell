@@ -64,6 +64,11 @@ export function fixesRepo(db: Db) {
 
 export function approvalsRepo(db: Db) {
   return {
+    /** A human decision on a fix (in the app or through an email link). */
+    record: async (
+      orgId: OrgId,
+      input: { fixId: string; userId: string | null; via: "app" | "email_link"; decision: "approved" | "edited" | "rejected"; editedValue?: unknown; reason?: string | null },
+    ) => first(await db.insert(approvals).values({ ...input, editedValue: input.editedValue ?? null, reason: input.reason ?? null, orgId }).returning()),
     listForFix: (orgId: OrgId, fixId: string) =>
       isUuid(fixId)
         ? db

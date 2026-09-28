@@ -11,7 +11,7 @@ const prod = { ...base, NODE_ENV: "production", BETTER_AUTH_URL: "https://app.me
 const mailtrap = { MAILTRAP_TOKEN: "tok", EMAIL_FROM: "Mendwell <noreply@koushiksaha.dev>" };
 const r2 = { R2_ACCOUNT_ID: "acc", R2_ACCESS_KEY_ID: "key", R2_SECRET_ACCESS_KEY: "secret", R2_BUCKET: "evidence" };
 const keys = { ENCRYPTION_KEYS: JSON.stringify({ k1: Buffer.alloc(32, 1).toString("base64") }), ENCRYPTION_ACTIVE_KID: "k1" };
-const prodReady = { ...prod, ...mailtrap, ...r2, ...keys, TRIGGER_SECRET_KEY: "tr_prod_x" };
+const prodReady = { ...prod, ...mailtrap, ...r2, ...keys, TRIGGER_SECRET_KEY: "tr_prod_x", APPROVAL_LINK_SECRET: "z".repeat(40) };
 
 describe("parseServerEnv", () => {
   it("accepts a minimal development env", () => {
@@ -45,6 +45,8 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv({ ...prodReady, MAILTRAP_SANDBOX_INBOX_ID: "1831231" })).toThrow(/must be unset in production/);
     expect(() => parseServerEnv({ ...prodReady, TRIGGER_SECRET_KEY: undefined })).toThrow(/TRIGGER_SECRET_KEY: required in production/);
     expect(() => parseServerEnv({ ...prodReady, R2_BUCKET: undefined })).toThrow(/R2/);
+    expect(() => parseServerEnv({ ...prodReady, APPROVAL_LINK_SECRET: undefined })).toThrow(/APPROVAL_LINK_SECRET: required in production/);
+    expect(() => parseServerEnv({ ...prodReady, APPROVAL_LINK_SECRET: "short" })).toThrow(/APPROVAL_LINK_SECRET/);
     expect(parseServerEnv(prodReady).NODE_ENV).toBe("production");
   });
 

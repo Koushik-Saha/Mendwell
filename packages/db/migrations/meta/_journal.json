@@ -29,6 +29,13 @@
       "when": 1790621190753,
       "tag": "0003_fix_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790625172284,
+      "tag": "0004_approval_links",
+      "breakpoints": true
     }
   ]
 }

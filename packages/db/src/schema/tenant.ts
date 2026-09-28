@@ -301,6 +301,29 @@ export const approvals = pgTable(
   ],
 );
 
+/**
+ * One-time approval links in emails (SECURITY.md T10). The token is `<id>.<hmac>`; this row makes
+ * it single-use, 7-day, and bound to one fix and one recipient.
+ */
+export const approvalLinks = pgTable(
+  "approval_links",
+  {
+    id: id(),
+    orgId: orgIdColumn(),
+    fixId: uuid("fix_id").notNull(),
+    recipientEmail: text("recipient_email").notNull(),
+    expiresAt: timestamptz("expires_at").notNull(),
+    usedAt: timestamptz("used_at"),
+    decision: approvalDecisionEnum("decision"),
+    ...timestamps,
+  },
+  (t) => [
+    index("approval_links_org_id_idx").on(t.orgId),
+    index("approval_links_fix_id_idx").on(t.fixId),
+    foreignKey({ name: "approval_links_fix_fk", columns: [t.fixId, t.orgId], foreignColumns: [fixes.id, fixes.orgId] }).onDelete("cascade"),
+  ],
+);
+
 export const reports = pgTable(
   "reports",
   {

@@ -5,7 +5,8 @@
   "description": "Types, policy, graduation, lifecycle, validators and verification comparators. Pure: no I/O.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

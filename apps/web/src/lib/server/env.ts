@@ -21,6 +21,8 @@ const schema = z
      * past the SSRF guard. Refused in production.
      */
     DEV_NET_ALLOW: z.string().regex(/^(\d{1,3}(\.\d{1,3}){3}:\d{1,5})(,\d{1,3}(\.\d{1,3}){3}:\d{1,5})*$/, "must be ip:port[,ip:port]").optional(),
+    /** Signs one-time approval links in emails (SECURITY.md T10). Same value in the worker. */
+    APPROVAL_LINK_SECRET: z.string().min(32, "must be at least 32 characters (openssl rand -base64 32)").optional(),
     /** Trigger.dev secret key: needed to start scans from the app. */
     TRIGGER_SECRET_KEY: z.string().min(1).optional(),
     R2_ACCOUNT_ID: z.string().min(1).optional(),
@@ -44,6 +46,7 @@ const schema = z
       if (env.DEV_NET_ALLOW) ctx.addIssue({ code: "custom", path: ["DEV_NET_ALLOW"], message: "must be unset in production" });
       if (!env.ENCRYPTION_KEYS) ctx.addIssue({ code: "custom", path: ["ENCRYPTION_KEYS"], message: "required in production" });
       if (!env.TRIGGER_SECRET_KEY) ctx.addIssue({ code: "custom", path: ["TRIGGER_SECRET_KEY"], message: "required in production" });
+      if (!env.APPROVAL_LINK_SECRET) ctx.addIssue({ code: "custom", path: ["APPROVAL_LINK_SECRET"], message: "required in production" });
       if (!r2.every(Boolean)) ctx.addIssue({ code: "custom", path: ["R2_ACCOUNT_ID"], message: "R2 is required in production" });
       if (!env.MAILTRAP_TOKEN) ctx.addIssue({ code: "custom", path: ["MAILTRAP_TOKEN"], message: "required in production" });
       if (!env.EMAIL_FROM) ctx.addIssue({ code: "custom", path: ["EMAIL_FROM"], message: "required in production" });

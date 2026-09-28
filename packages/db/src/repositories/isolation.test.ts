@@ -49,6 +49,8 @@ const reads: Record<string, Read> = {
   "pages.listForSite": { run: (r, o, v) => r.pages.listForSite(o, v.site.id), target: (v) => v.page.id },
   "pages.get": { run: (r, o, v) => r.pages.get(o, v.page.id), target: (v) => v.page.id },
   "pairingCodes.listActiveForSite": { run: (r, o, v) => r.pairingCodes.listActiveForSite(o, v.site.id), target: (v) => v.pairingCode.id },
+  "fixViews.forSite": { run: (r, o, v) => r.fixViews.forSite(o, v.site.id), target: (v) => v.fix.id, key: (row) => (row.fix as { id: string }).id },
+  "fixViews.get": { run: (r, o, v) => r.fixViews.get(o, v.fix.id), target: (v) => v.fix.id, key: (row) => (row.fix as { id: string }).id },
   "scans.listForSite": { run: (r, o, v) => r.scans.listForSite(o, v.site.id), target: (v) => v.scan.id },
   "scans.get": { run: (r, o, v) => r.scans.get(o, v.scan.id), target: (v) => v.scan.id },
   "issues.list": { run: (r, o) => r.issues.list(o), target: (v) => v.issue.id },
@@ -133,6 +135,15 @@ describe("writes scoped to the wrong org change nothing", () => {
     expect(await repos.alertRecords.resolve(b.orgId, [a.alert.id])).toEqual([]);
     await repos.scanRuns.progress(b.orgId, a.scan.id, { phase: "crawling", pagesDone: 99 });
     expect((await repos.scans.get(a.orgId, a.scan.id))?.progress).not.toMatchObject({ pagesDone: 99 });
+  });
+
+  it("fix read models and links only see the caller's org", async () => {
+    expect((await repos.fixViews.timeline(b.orgId, a.fix.id)).steps).toEqual([]);
+    // pending(): the positive control is in fixViews.test.ts (seeded fixes here are only proposed).
+    expect((await repos.fixViews.pending(b.orgId, { siteId: a.site.id })).map((r) => r.fix.id)).toEqual([]);
+    expect((await repos.fixViews.siteStats(b.orgId, new Date(0))).openAlerts.map((x) => x.id)).not.toContain(a.alert.id);
+    const link = await repos.approvalLinks.create(a.orgId, { fixId: a.fix.id, recipientEmail: "c@example.test", expiresAt: new Date(Date.now() + 60_000) });
+    expect(await repos.approvalLinks.consume(b.orgId, link?.id ?? "", "approved")).toBeNull();
   });
 
   it("fix bookkeeping only touches the caller's org", async () => {

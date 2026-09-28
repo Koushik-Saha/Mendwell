@@ -1,7 +1,7 @@
 import { createRepositories, type Db, type Repositories } from "@mendwell/db";
 import { createDb } from "@mendwell/db/client";
 import { createR2Store, createUnconfiguredStore, type ObjectStore } from "@mendwell/db/storage";
-import { parseKeyring, type Keyring } from "@mendwell/core";
+import { approvalLinkKey, parseKeyring, type Keyring } from "@mendwell/core";
 import { magicLinkEmail, type Mailer } from "@mendwell/email";
 import type { SafeFetchOptions } from "@mendwell/scanner/net";
 import { createAuth, MAGIC_LINK_TTL_SECONDS, type Auth } from "./auth";
@@ -10,6 +10,7 @@ import { AppError } from "./errors";
 import { createMailer } from "./mailer";
 
 export type ScanJob = { orgId: string; siteId: string; scanId: string; kind: "manual" };
+export type ApplyJob = { orgId: string; fixId: string; siteId: string };
 
 export type ServerContext = {
   env: Pick<ServerEnv, "BETTER_AUTH_URL">;
@@ -27,7 +28,27 @@ export type ServerContext = {
   scansEnabled: boolean;
   /** Start the scan.site task. Returns the Trigger.dev run id. */
   enqueueScan: (job: ScanJob) => Promise<{ runId: string }>;
+  /**
+   * Queue fix.apply after an approval. Best effort: without Trigger.dev the worker isn't running,
+   * and its sweeper picks up approved fixes anyway. Every gate is re-checked in the worker.
+   */
+  enqueueApply: (job: ApplyJob) => Promise<void>;
+  /** Signing key for email approval links, or null when APPROVAL_LINK_SECRET isn't set (links are refused). */
+  approvalLinkKey: Buffer | null;
 };
+
+function applyEnqueuer(env: ServerEnv): ServerContext["enqueueApply"] {
+  return async (job) => {
+    if (!env.TRIGGER_SECRET_KEY) return;
+    const { configure, tasks } = await import("@trigger.dev/sdk");
+    configure({ secretKey: env.TRIGGER_SECRET_KEY });
+    await tasks.trigger("fix.apply", job, {
+      idempotencyKey: `fix.apply:${job.fixId}:${Math.floor(Date.now() / 600_000)}`,
+      concurrencyKey: job.siteId, // one write at a time per site (hard rule 3)
+      tags: [`site:${job.siteId}`, `fix:${job.fixId}`],
+    });
+  };
+}
 
 function scanEnqueuer(env: ServerEnv): ServerContext["enqueueScan"] {
   return async (job) => {
@@ -79,6 +100,8 @@ function build(): ServerContext {
     net,
     scansEnabled: Boolean(env.TRIGGER_SECRET_KEY),
     enqueueScan: scanEnqueuer(env),
+    enqueueApply: applyEnqueuer(env),
+    approvalLinkKey: env.APPROVAL_LINK_SECRET ? approvalLinkKey(env.APPROVAL_LINK_SECRET) : null,
   };
 }
 
