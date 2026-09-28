@@ -1,13 +1,26 @@
 import { join } from "node:path";
+import { parseKeyring, type Keyring } from "@mendwell/core";
 import type { Db } from "@mendwell/db";
 import { createDb } from "@mendwell/db/client";
 import { createR2Store, createUnconfiguredStore, type ObjectStore } from "@mendwell/db/storage";
 import { mailerFromEnv, type Mailer } from "@mendwell/email";
+import { createAnthropicClient, type ModelClient } from "@mendwell/generators";
 import { buildUserAgent } from "@mendwell/scanner";
 import { logger } from "@trigger.dev/sdk";
 import { parseWorkerEnv, type WorkerEnv } from "./env";
 
-export type WorkerDeps = { env: WorkerEnv; db: Db; store: ObjectStore; mailer: Mailer; botInfoUrl: string; userAgent: string };
+export type WorkerDeps = {
+  env: WorkerEnv;
+  db: Db;
+  store: ObjectStore;
+  mailer: Mailer;
+  botInfoUrl: string;
+  userAgent: string;
+  /** Null until ENCRYPTION_KEYS is set: connector calls are skipped. */
+  keyring: Keyring | null;
+  /** Null until ANTHROPIC_API_KEY is set: only deterministic fixes are proposed. */
+  ai: { client: ModelClient; visionModel: string; textModel: string } | null;
+};
 
 let cached: WorkerDeps | undefined;
 
@@ -31,6 +44,10 @@ export function workerDeps(): WorkerDeps {
     mailer: mailerFromEnv(env, { outboxDir: join(process.cwd(), ".dev-outbox") }),
     botInfoUrl,
     userAgent: buildUserAgent(botInfoUrl),
+    keyring: env.ENCRYPTION_KEYS ? parseKeyring(env) : null,
+    ai: env.ANTHROPIC_API_KEY ? { client: createAnthropicClient({ apiKey: env.ANTHROPIC_API_KEY }), visionModel: env.AI_MODEL_VISION, textModel: env.AI_MODEL_TEXT } : null,
   };
+  if (!cached.keyring) logger.warn("worker.encryption.not_configured: connector calls are skipped");
+  if (!cached.ai) logger.warn("worker.ai.not_configured: only link fixes are proposed");
   return cached;
 }

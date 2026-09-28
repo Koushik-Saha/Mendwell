@@ -49,6 +49,9 @@ const FIXABLE: Record<string, FixCategory> = {
   "link-broken-external": "external_link",
 };
 
+/** Every rule fix.propose can act on. */
+export const FIXABLE_RULES: readonly string[] = Object.keys(FIXABLE);
+
 export function fixCategoryForRule(rule: string): FixCategory | null {
   return FIXABLE[rule] ?? null;
 }
@@ -181,3 +184,61 @@ export function localTime(now: Date, timeZone: string): { hour: number; date: st
 
 /** Daily scans run at 02:00 in the site's timezone (PROJECT_SPEC §4). */
 export const DAILY_SCAN_LOCAL_HOUR = 2;
+
+/** PROJECT_SPEC §5.4: default automatic writes per site per day (sites.daily_write_cap). */
+export const DEFAULT_DAILY_WRITE_CAP = 25;
+
+/** SECURITY.md T13: AI generations per org per rolling 24 hours, and per fix.propose run. */
+export const AI_DAILY_GENERATIONS_PER_ORG = 300;
+export const AI_GENERATIONS_PER_RUN = 60;
+
+/**
+ * WooCommerce pages the connector reports that are never auto-fixed (hard rule 4). The shop page
+ * is reported too but isn't sensitive, so it's left out.
+ */
+export function wooProtectedUrls(woocommerce: { active: boolean; pages: Record<string, { id: number; url: string }> } | null | undefined): string[] {
+  if (!woocommerce?.active) return [];
+  return ["cart", "checkout", "myaccount"].flatMap((k) => (woocommerce.pages[k]?.url ? [woocommerce.pages[k].url] : []));
+}
+
+/** Paths of full URLs, for use as protected paths (a subfolder install keeps its prefix). */
+export function pathsOf(urls: readonly string[]): string[] {
+  return urls.flatMap((u) => {
+    try {
+      const path = new URL(u).pathname;
+      return path && path !== "/" ? [path] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+export type BucketReason = "protected_page" | "external_link" | "needs_review" | "not_graduated" | "daily_cap" | "graduated";
+
+export type BucketInput = {
+  category: FixCategory;
+  categoryState: "approval" | "eligible" | "auto";
+  pageUrl: string;
+  /** The customer's protected paths (sites.protected_paths). */
+  protectedPaths: readonly string[];
+  /** Protected pages the connector reported (WooCommerce cart/checkout/account). */
+  protectedUrls?: readonly string[];
+  /** Automatic writes already made for this site in the last 24 hours. */
+  autoWritesToday: number;
+  dailyCap: number;
+  /** Decorative image (alt=""), several link candidates, or anything else a human must choose. */
+  needsReview?: boolean;
+};
+
+/**
+ * Where a proposed fix goes (PROJECT_SPEC §5.4). Deterministic; the model never influences it.
+ * Only returns auto when every condition holds; anything uncertain asks first.
+ */
+export function decideBucket(input: BucketInput): { bucket: "auto" | "approval"; reason: BucketReason } {
+  if (isProtectedPage(input.pageUrl, [...input.protectedPaths, ...pathsOf(input.protectedUrls ?? [])])) return { bucket: "approval", reason: "protected_page" };
+  if (input.category === "external_link") return { bucket: "approval", reason: "external_link" };
+  if (input.needsReview) return { bucket: "approval", reason: "needs_review" };
+  if (input.categoryState !== "auto") return { bucket: "approval", reason: "not_graduated" };
+  if (input.autoWritesToday >= Math.max(0, input.dailyCap)) return { bucket: "approval", reason: "daily_cap" };
+  return { bucket: "auto", reason: "graduated" };
+}

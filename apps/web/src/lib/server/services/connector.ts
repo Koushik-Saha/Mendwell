@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { createConnectorClient, encrypt, decrypt, hasRole, type ConnectorClient } from "@mendwell/core";
+import { connectorSecretContext, createConnectorClient, decrypt, encrypt, hasRole, type ConnectorClient } from "@mendwell/core";
 import { createRepositories } from "@mendwell/db";
-import { createSafeFetch, SafeFetchError } from "@mendwell/scanner/net";
+import { connectorTransport, createSafeFetch, SafeFetchError } from "@mendwell/scanner/net";
 import { server } from "../context";
 import { AppError, notFound } from "../errors";
 import type { OrgContext } from "../session";
@@ -12,7 +12,7 @@ const PAIRING_CODES_PER_HOUR = 10;
 // No 0/O, 1/I/L: codes are read off one screen and typed into another.
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
-export const secretContext = (siteId: string) => `site:${siteId}:connector_secret`;
+export const secretContext = connectorSecretContext;
 export const hashPairingCode = (normalized: string) => createHash("sha256").update(normalized).digest("hex");
 
 /** "abcd efgh-jklm" → "ABCD-EFGH-JKLM", or null. Must match the plugin's normalize_code. */
@@ -127,10 +127,7 @@ export async function connectorFor(ctx: Pick<OrgContext, "orgId">, siteId: strin
     siteUrl: site.url,
     secret,
     restMode: site.connectorRestMode === "query" ? "query" : "pretty",
-    transport: async (request) => {
-      const res = await safeFetch(request.url, { method: request.method, headers: request.headers, body: request.body, maxBytes: 1024 * 1024 });
-      return { status: res.status, body: res.body.toString("utf8") };
-    },
+    transport: connectorTransport(safeFetch),
   });
 }
 

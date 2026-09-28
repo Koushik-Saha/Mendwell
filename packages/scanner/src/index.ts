@@ -4,7 +4,8 @@ export { checkMeta, checkOpenGraph, DESCRIPTION_MAX, TITLE_MAX } from "./checks/
 export { checkSsl, classifyCertificate, readCertificate, type CertificateInfo } from "./checks/ssl";
 export type { ScannerFinding } from "./checks/types";
 export { checkUptime, type UptimeResult } from "./checks/uptime";
-export { crawl, DEFAULT_PAGE_CAP, MAX_CONCURRENCY_PER_HOST, type CrawledPage, type CrawlResult } from "./crawl";
+export { connectorTransport } from "./net/connectorTransport";
+export { crawl, routeThroughSafeFetch, DEFAULT_PAGE_CAP, MAX_CONCURRENCY_PER_HOST, type CrawledPage, type CrawlResult } from "./crawl";
 export { blockedReason, isBlockedAddress } from "./net/ip";
 export {
   buildUserAgent,

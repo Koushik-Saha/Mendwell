@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  decideBucket,
   fixCategoryForRule,
   initialBucket,
   isDownAfterConsecutiveFailures,
@@ -9,6 +10,7 @@ import {
   reconcileIssues,
   ruleLabel,
   sslAlertThreshold,
+  wooProtectedUrls,
   type KnownIssue,
 } from "./policy";
 
@@ -164,5 +166,41 @@ describe("localTime", () => {
 
   it("falls back to UTC for an invalid timezone", () => {
     expect(localTime(now, "Mars/Olympus_Mons")).toEqual({ hour: 6, date: "2026-09-26" });
+  });
+});
+
+describe("decideBucket", () => {
+  const base = {
+    category: "alt_text" as const,
+    categoryState: "auto" as const,
+    pageUrl: "https://shop.test/about/",
+    protectedPaths: [],
+    autoWritesToday: 0,
+    dailyCap: 25,
+  };
+
+  it("is auto only when graduated, unprotected, reviewed-free and under the cap", () => {
+    expect(decideBucket(base)).toEqual({ bucket: "auto", reason: "graduated" });
+    expect(decideBucket({ ...base, categoryState: "eligible" })).toEqual({ bucket: "approval", reason: "not_graduated" });
+    expect(decideBucket({ ...base, categoryState: "approval" })).toEqual({ bucket: "approval", reason: "not_graduated" });
+    expect(decideBucket({ ...base, autoWritesToday: 25 })).toEqual({ bucket: "approval", reason: "daily_cap" });
+    expect(decideBucket({ ...base, dailyCap: 0 })).toEqual({ bucket: "approval", reason: "daily_cap" });
+    expect(decideBucket({ ...base, needsReview: true })).toEqual({ bucket: "approval", reason: "needs_review" });
+    expect(decideBucket({ ...base, category: "external_link" })).toEqual({ bucket: "approval", reason: "external_link" });
+  });
+
+  it("never auto-fixes protected pages: defaults, the customer's list, and WooCommerce pages from the connector", () => {
+    expect(decideBucket({ ...base, pageUrl: "https://shop.test/checkout/" }).reason).toBe("protected_page");
+    expect(decideBucket({ ...base, pageUrl: "https://shop.test/members/area/", protectedPaths: ["/members/"] }).reason).toBe("protected_page");
+    const woo = wooProtectedUrls({
+      active: true,
+      pages: { cart: { id: 5, url: "https://shop.test/basket/" }, checkout: { id: 6, url: "https://shop.test/pay/" }, myaccount: { id: 7, url: "https://shop.test/konto/" }, shop: { id: 4, url: "https://shop.test/store/" } },
+    });
+    expect(woo).toEqual(["https://shop.test/basket/", "https://shop.test/pay/", "https://shop.test/konto/"]);
+    expect(decideBucket({ ...base, pageUrl: "https://shop.test/basket/", protectedUrls: woo }).reason).toBe("protected_page");
+    expect(decideBucket({ ...base, pageUrl: "https://shop.test/konto/orders/", protectedUrls: woo }).reason).toBe("protected_page");
+    expect(decideBucket({ ...base, pageUrl: "https://shop.test/store/", protectedUrls: woo }).bucket).toBe("auto");
+    expect(wooProtectedUrls({ active: false, pages: {} })).toEqual([]);
+    expect(wooProtectedUrls(null)).toEqual([]);
   });
 });

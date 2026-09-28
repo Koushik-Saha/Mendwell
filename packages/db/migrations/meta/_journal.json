@@ -22,6 +22,13 @@
       "when": 1790468281115,
       "tag": "0002_connector_rest_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790621190753,
+      "tag": "0003_fix_proposals",
+      "breakpoints": true
     }
   ]
 }

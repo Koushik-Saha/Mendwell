@@ -12,6 +12,7 @@ import {
   primaryKey,
   text,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth";
@@ -215,6 +216,8 @@ export const issues = pgTable(
     firstScanId: uuid("first_scan_id").notNull(),
     lastScanId: uuid("last_scan_id").notNull(),
     resolvedAt: timestamptz("resolved_at"),
+    /** Last time fix.propose tried and produced nothing (generation failed validation, no resolvable link…). */
+    fixAttemptedAt: timestamptz("fix_attempted_at"),
     ...timestamps,
   },
   (t) => [
@@ -263,6 +266,10 @@ export const fixes = pgTable(
     index("fixes_site_id_idx").on(t.siteId),
     index("fixes_issue_id_idx").on(t.issueId),
     index("fixes_status_idx").on(t.status),
+    // At most one live fix per issue, so a retried fix.propose can never create a second one.
+    uniqueIndex("fixes_issue_active_unique")
+      .on(t.issueId)
+      .where(sql`${t.status} in ('proposed', 'pending', 'approved', 'edited', 'applying', 'applied', 'verifying', 'verify_failed', 'rolling_back')`),
     siteFk("fixes_site_fk", t.siteId, t.orgId),
     foreignKey({ name: "fixes_issue_fk", columns: [t.issueId, t.orgId], foreignColumns: [issues.id, issues.orgId] }).onDelete(
       "cascade",

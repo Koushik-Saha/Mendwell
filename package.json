@@ -16,7 +16,8 @@
     "db:generate": "pnpm --filter @mendwell/db generate",
     "db:migrate": "pnpm --filter @mendwell/db migrate",
     "db:studio": "pnpm --filter @mendwell/db studio",
-    "test:connector": "pnpm --filter mendwell-connector test"
+    "test:connector": "pnpm --filter mendwell-connector test",
+    "eval:generators": "pnpm --filter @mendwell/worker eval:generators"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

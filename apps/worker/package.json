@@ -8,12 +8,14 @@
     "deploy": "trigger deploy",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:generators": "vitest run --config vitest.eval.config.ts"
   },
   "dependencies": {
     "@mendwell/core": "workspace:*",
     "@mendwell/db": "workspace:*",
     "@mendwell/email": "workspace:*",
+    "@mendwell/generators": "workspace:*",
     "@mendwell/scanner": "workspace:*",
     "@trigger.dev/sdk": "4.6.4",
     "chrome-launcher": "^1.2.1",

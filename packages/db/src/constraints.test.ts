@@ -39,6 +39,8 @@ describe("the database enforces tenant boundaries", () => {
         siteId: a.site.id,
         issueId: a.issue.id,
         category: "alt_text",
+        // A finished status, so the one-live-fix-per-issue index doesn't fire before the FK does.
+        status: "rejected",
         bucketAtCreation: "approval",
         proposedValue: {},
       }),
@@ -53,6 +55,8 @@ describe("the database enforces tenant boundaries", () => {
         siteId: b.site.id,
         issueId: a.issue.id,
         category: "alt_text",
+        // A finished status, so the one-live-fix-per-issue index doesn't fire before the FK does.
+        status: "rejected",
         bucketAtCreation: "approval",
         proposedValue: {},
       }),

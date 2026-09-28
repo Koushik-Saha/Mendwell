@@ -109,6 +109,7 @@ describe("writes scoped to the wrong org change nothing", () => {
       await r.scanRuns.setRunId(a.orgId, a.scan.id, "run_isolation");
       return r.scanRuns.byRunId(b.orgId, "run_isolation");
     },
+    "fixRecords.transition": (r) => r.fixRecords.transition(b.orgId, a.fix.id, { type: "request_approval" }, "worker"),
     "scanRuns.finish": (r) => r.scanRuns.finish(b.orgId, a.scan.id, { status: "failed", workerSeconds: 1 }),
   };
 
@@ -129,6 +130,17 @@ describe("writes scoped to the wrong org change nothing", () => {
     expect(await repos.alertRecords.resolve(b.orgId, [a.alert.id])).toEqual([]);
     await repos.scanRuns.progress(b.orgId, a.scan.id, { phase: "crawling", pagesDone: 99 });
     expect((await repos.scans.get(a.orgId, a.scan.id))?.progress).not.toMatchObject({ pagesDone: 99 });
+  });
+
+  it("fix bookkeeping only touches the caller's org", async () => {
+    await repos.fixRecords.markAttempted(b.orgId, [a.issue.id]);
+    expect((await repos.issues.get(a.orgId, a.issue.id))?.fixAttemptedAt).toBeNull();
+    expect((await repos.fixes.get(a.orgId, a.fix.id))?.status).toBe("proposed");
+    expect(await repos.fixRecords.recentDecisions(b.orgId, a.site.id, "alt_text")).toEqual([]);
+    expect(await repos.fixRecords.autoFixesSince(b.orgId, a.site.id, new Date(0))).toBe(0);
+    // The positive control for proposalCandidates is in fixes.test.ts (a seeded issue already has a fix).
+    expect(await repos.fixRecords.proposalCandidates(b.orgId, a.site.id, { retryAfter: new Date(Date.now() + 60_000), limit: 100 })).toEqual([]);
+    expect(await repos.aiUsage.callsSince(b.orgId, new Date(0))).toBe(1); // b's own seeded row only
   });
 
   it("left org A's rows untouched", async () => {

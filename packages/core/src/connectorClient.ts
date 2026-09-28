@@ -15,6 +15,9 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 
 export const CONNECTOR_NAMESPACE = "/mendwell/v1";
 
+/** AES-GCM associated data for a site's stored connector secret (binds the ciphertext to the site). */
+export const connectorSecretContext = (siteId: string) => `site:${siteId}:connector_secret`;
+
 /** encodeURIComponent plus the characters RFC 3986 reserves (PHP rawurlencode). */
 function rfc3986(value: string): string {
   return encodeURIComponent(value).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);

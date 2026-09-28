@@ -11,5 +11,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@mendwell/core": "workspace:*",
+    "zod": "^4.6.5"
   }
 }

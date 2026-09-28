@@ -1,0 +1,2 @@
+ALTER TABLE "issues" ADD COLUMN "fix_attempted_at" timestamp with time zone;--> statement-breakpoint
+CREATE UNIQUE INDEX "fixes_issue_active_unique" ON "fixes" USING btree ("issue_id") WHERE "fixes"."status" in ('proposed', 'pending', 'approved', 'edited', 'applying', 'applied', 'verifying', 'verify_failed', 'rolling_back');

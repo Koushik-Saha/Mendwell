@@ -5,3 +5,7 @@ export * from "./domain";
 export * from "./issue";
 export * from "./policy";
 export * from "./connectorClient";
+export * from "./lifecycle";
+export * from "./graduation";
+export * from "./validators";
+export * from "./fixValues";

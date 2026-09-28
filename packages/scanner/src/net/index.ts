@@ -11,3 +11,4 @@ export {
   type SafeRequest,
   type SafeResponse,
 } from "./safeFetch";
+export { connectorTransport } from "./connectorTransport";
