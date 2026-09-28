@@ -9,7 +9,8 @@ beforeAll(async () => {
 afterAll(() => browser?.close());
 
 describe("axeImageAlt", () => {
-  it("checks only the given elements, counting passes and violations", async () => {
+  // Four axe runs in a real browser: seconds on a busy CI runner.
+  it("checks only the given elements, counting passes and violations", { timeout: 30_000 }, async () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.setContent(`<!doctype html><html lang="en"><body>
