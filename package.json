@@ -10,7 +10,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "test": "turbo run test --filter=!mendwell-connector",
+    "test": "turbo run test --filter=!mendwell-connector --concurrency=3",
     "fixtures:serve": "pnpm --filter @mendwell/fixtures serve",
     "test:cross-org": "pnpm --filter @mendwell/web test:cross-org",
     "db:generate": "pnpm --filter @mendwell/db generate",

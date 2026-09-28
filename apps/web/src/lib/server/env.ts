@@ -23,6 +23,8 @@ const schema = z
     DEV_NET_ALLOW: z.string().regex(/^(\d{1,3}(\.\d{1,3}){3}:\d{1,5})(,\d{1,3}(\.\d{1,3}){3}:\d{1,5})*$/, "must be ip:port[,ip:port]").optional(),
     /** Signs one-time approval links in emails (SECURITY.md T10). Same value in the worker. */
     APPROVAL_LINK_SECRET: z.string().min(32, "must be at least 32 characters (openssl rand -base64 32)").optional(),
+    /** Mailtrap webhook signing secret (report open tracking). Events are refused without it. */
+    MAILTRAP_WEBHOOK_SECRET: z.string().min(16).optional(),
     /** Trigger.dev secret key: needed to start scans from the app. */
     TRIGGER_SECRET_KEY: z.string().min(1).optional(),
     R2_ACCOUNT_ID: z.string().min(1).optional(),

@@ -12,3 +12,4 @@ export * from "./fixValues";
 export * from "./verification";
 export * from "./approvalLinks";
 export * from "./editedValue";
+export * from "./report";

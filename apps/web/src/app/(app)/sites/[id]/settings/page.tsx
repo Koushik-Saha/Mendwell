@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/sites/site-header";
 import { CategoryToggles } from "@/components/sites/category-toggles";
 import { SiteSettingsForm } from "@/components/sites/site-settings-form";
+import { TestReportButton } from "@/components/sites/test-report-button";
 import { AppError } from "@/lib/server/errors";
 import { getOrgPageContext } from "@/lib/server/page-context";
 import { syncPauseFromPlugin } from "@/lib/server/services/connector";
@@ -44,6 +45,16 @@ export default async function SiteSettingsPage({ params }: { params: Promise<{ i
           connectorVersion: site.connectorVersion,
         }}
       />
+      <section aria-labelledby="report-title" className="max-w-xl space-y-2">
+        <h2 id="report-title" className="text-base font-semibold">
+          Friday report
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Sent every Friday at 8:00 in this site&apos;s time zone to you and the extra recipients above. (In an agency workspace, owners and admins
+          get one weekly roll-up of all sites instead.) See what it looks like with this week&apos;s numbers:
+        </p>
+        <TestReportButton siteId={site.id} />
+      </section>
     </div>
   );
 }

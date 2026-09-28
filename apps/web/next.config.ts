@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Hard rule 8: the dev server logs request URLs. Never log sign-in, OAuth or invitation tokens.
   logging: {
-    incomingRequests: { ignore: [/\/api\/auth\//, /\/invite\//, /^\/a\//, /[?&](token|code|state)=/] },
+    incomingRequests: { ignore: [/\/api\/auth\//, /\/invite\//, /^\/a\//, /^\/f\//, /[?&](token|code|state)=/] },
   },
   // Lint runs as its own step (`pnpm lint`, CI) with the shared root config.
   eslint: { ignoreDuringBuilds: true },

@@ -11,11 +11,13 @@ export const APPROVAL_LINK_TTL_MS = 7 * 24 * 3_600_000;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-/** A dedicated signing key derived from a server secret (never the secret itself). */
-export function approvalLinkKey(secret: string): Buffer {
+/** A dedicated signing key per purpose, derived from a server secret (never the secret itself). */
+export function derivedKey(secret: string, purpose: "approval-links:v1" | "report-feedback:v1"): Buffer {
   if (secret.length < 32) throw new Error("approval link secret must be at least 32 characters");
-  return Buffer.from(hkdfSync("sha256", secret, "mendwell", "approval-links:v1", 32));
+  return Buffer.from(hkdfSync("sha256", secret, "mendwell", purpose, 32));
 }
+
+export const approvalLinkKey = (secret: string) => derivedKey(secret, "approval-links:v1");
 
 const sign = (key: Buffer, linkId: string) => createHmac("sha256", key).update(`approval-link:${linkId}`).digest("base64url");
 

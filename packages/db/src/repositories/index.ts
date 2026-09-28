@@ -1,6 +1,7 @@
 import type { Db } from "../db";
 import { aiUsageRepo, fixRecordsRepo } from "./fixes";
 import { approvalLinksRepo, fixViewsRepo } from "./fixViews";
+import { reportDataRepo, reportRecordsRepo } from "./reports";
 import { alertsRepo, approvalsRepo, billingRepo, fixesRepo, issuesRepo, reportsRepo, scansRepo } from "./findings";
 import { accessRepo, auditRepo, invitationsRepo, membersRepo, organizationsRepo } from "./orgs";
 import { alertRecordsRepo, issueRecordsRepo, scanRunsRepo, sitePagesRepo, teamContactsRepo, uptimeRepo } from "./pipeline";
@@ -42,10 +43,13 @@ export function createRepositories(db: Db) {
     aiUsage: aiUsageRepo(db),
     fixViews: fixViewsRepo(db),
     approvalLinks: approvalLinksRepo(db),
+    reportRecords: reportRecordsRepo(db),
+    reportData: reportDataRepo(db),
   };
 }
 
 export type Repositories = ReturnType<typeof createRepositories>;
 export type { Actor, AuditEntry } from "./orgs";
+export { systemReportsRepo } from "./reports";
 export { FixStateConflictError, systemFixesRepo, type AiUsageEntry, type FixExtra } from "./fixes";
 export { systemSitesRepo, urlHash, type IssueRow, type ScanCounts, type ScanProgress } from "./pipeline";

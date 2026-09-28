@@ -26,6 +26,14 @@ describe("createMailtrapMailer", () => {
     });
   });
 
+  it("tags a report with its category and id, and returns Mailtrap's message id", async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ success: true, message_ids: ["mt-42"] }), { status: 200 }));
+    const result = await createMailtrapMailer({ token: "t", from: "a@b.test", fetch }).send({ ...message, category: "report", customVariables: { report_id: "r1" } });
+    expect(result).toEqual({ messageId: "mt-42" });
+    const body = JSON.parse(String((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(body).toMatchObject({ category: "report", custom_variables: { report_id: "r1" } });
+  });
+
   it("delivers into a testing inbox when sandboxInboxId is set", async () => {
     const fetch = fakeFetch();
     await createMailtrapMailer({ token: "t", from: "noreply@koushiksaha.dev", sandboxInboxId: "1831231", fetch }).send(message);

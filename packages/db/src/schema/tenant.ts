@@ -337,17 +337,41 @@ export const reports = pgTable(
     sentAt: timestamptz("sent_at"),
     openedAt: timestamptz("opened_at"),
     providerId: text("provider_id"),
+    /** Idempotency (hard rule 10): the site's local Friday date, or "test:<id>" for a test send. */
+    periodKey: text("period_key"),
     ...timestamps,
   },
   (t) => [
+    unique("reports_id_org_unique").on(t.id, t.orgId),
     index("reports_org_id_idx").on(t.orgId),
     index("reports_site_id_idx").on(t.siteId),
+    uniqueIndex("reports_site_period_unique").on(t.siteId, t.periodKey).where(sql`${t.siteId} is not null and ${t.periodKey} is not null`),
+    uniqueIndex("reports_digest_period_unique").on(t.orgId, t.periodKey).where(sql`${t.siteId} is null and ${t.periodKey} is not null`),
     siteFk("reports_site_fk", t.siteId, t.orgId),
     foreignKey({ name: "reports_client_fk", columns: [t.clientId, t.orgId], foreignColumns: [clients.id, clients.orgId] }).onDelete(
       "cascade",
     ),
   ],
 );
+
+export const reportFeedback = pgTable(
+  "report_feedback",
+  {
+    id: id(),
+    orgId: orgIdColumn(),
+    reportId: uuid("report_id").notNull(),
+    category: fixCategoryEnum("category").notNull(),
+    vote: text("vote").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    index("report_feedback_org_id_idx").on(t.orgId),
+    unique("report_feedback_report_category_unique").on(t.reportId, t.category),
+    check("report_feedback_vote", sql`${t.vote} in ('up', 'down')`),
+    foreignKey({ name: "report_feedback_report_fk", columns: [t.reportId, t.orgId], foreignColumns: [reports.id, reports.orgId] }).onDelete("cascade"),
+  ],
+);
+
 
 export const alerts = pgTable(
   "alerts",

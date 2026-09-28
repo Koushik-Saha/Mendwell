@@ -15,6 +15,8 @@ const schema = z
     ENCRYPTION_KEYS: z.string().min(2).optional(),
     ENCRYPTION_ACTIVE_KID: z.string().min(1).optional(),
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    /** Signs approval and 👍/👎 links in report emails. Same value as the web app. */
+    APPROVAL_LINK_SECRET: z.string().min(32).optional(),
     /** The global kill switch (hard rule 3). Off unless explicitly "true". */
     WRITES_ENABLED: z.enum(["true", "false"]).default("false"),
     /** The operator's address for anomaly auto-pauses (SECURITY.md §2 Monitoring). */
@@ -30,6 +32,7 @@ const schema = z
     }
     if (env.NODE_ENV === "production") {
       if (!env.ENCRYPTION_KEYS) ctx.addIssue({ code: "custom", path: ["ENCRYPTION_KEYS"], message: "required in production" });
+      if (!env.APPROVAL_LINK_SECRET) ctx.addIssue({ code: "custom", path: ["APPROVAL_LINK_SECRET"], message: "required in production" });
       if (!env.ANTHROPIC_API_KEY) ctx.addIssue({ code: "custom", path: ["ANTHROPIC_API_KEY"], message: "required in production" });
       if (!r2.every(Boolean)) ctx.addIssue({ code: "custom", path: ["R2_ACCOUNT_ID"], message: "R2 is required in production" });
       if (!env.MAILTRAP_TOKEN || !env.EMAIL_FROM) ctx.addIssue({ code: "custom", path: ["MAILTRAP_TOKEN"], message: "Mailtrap is required in production" });

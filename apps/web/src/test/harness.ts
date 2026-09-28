@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { randomBytes } from "node:crypto";
-import { approvalLinkKey, parseKeyring, unsafeOrgId, type OrgId, type Role } from "@mendwell/core";
+import { approvalLinkKey, derivedKey, parseKeyring, unsafeOrgId, type OrgId, type Role } from "@mendwell/core";
 import { createRepositories, type Db } from "@mendwell/db";
 import { memberships, users } from "@mendwell/db/schema";
 import { createMemoryStore } from "@mendwell/db/storage";
@@ -8,7 +8,7 @@ import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { EmailMessage } from "@mendwell/email";
 import { NextRequest } from "next/server";
 import { createAuth, type Auth } from "@/lib/server/auth";
-import { setServerContextForTests, type ApplyJob, type ScanJob } from "@/lib/server/context";
+import { setServerContextForTests, type ApplyJob, type ReportJob, type ScanJob } from "@/lib/server/context";
 import { ACTIVE_ORG_COOKIE } from "@/lib/server/session";
 
 export const BASE_URL = "http://mendwell.test";
@@ -19,6 +19,8 @@ export type Harness = Awaited<ReturnType<typeof createHarness>>;
  * A real Postgres (PGlite + all migrations), the real Better Auth config with test-utils,
  * and an in-memory outbox, installed as the server context for route handlers.
  */
+export const MAILTRAP_WEBHOOK_SECRET = "0123456789abcdef0123456789abcdef";
+
 export async function createHarness() {
   const { db, close } = await createTestDb();
   const outbox: EmailMessage[] = [];
@@ -33,6 +35,7 @@ export async function createHarness() {
   const store = createMemoryStore();
   const enqueued: ScanJob[] = [];
   const applies: ApplyJob[] = [];
+  const reportJobs: ReportJob[] = [];
   const keyring = parseKeyring({ ENCRYPTION_KEYS: JSON.stringify({ t1: randomBytes(32).toString("base64") }), ENCRYPTION_ACTIVE_KID: "t1" });
   // Tests open individual local ports for fake WordPress sites with allowPort().
   const net = { testAllow: { addresses: ["127.0.0.1"], ports: [] as number[] }, resolver: undefined as undefined | ((h: string) => Promise<{ address: string; family: 4 | 6 }[]>) };
@@ -52,6 +55,9 @@ export async function createHarness() {
     },
     enqueueApply: async (job) => void applies.push(job),
     approvalLinkKey: approvalLinkKey("test-approval-link-secret-at-least-32-chars"),
+    feedbackKey: derivedKey("test-approval-link-secret-at-least-32-chars", "report-feedback:v1"),
+    mailtrapWebhookSecret: MAILTRAP_WEBHOOK_SECRET,
+    enqueueReport: async (job) => void reportJobs.push(job),
   });
   const test = (await auth.$context).test;
 
@@ -109,6 +115,7 @@ export async function createHarness() {
     store,
     enqueued,
     applies,
+    reportJobs,
     keyring,
     /** Let the app reach a fake site on 127.0.0.1:<port> (and resolve test hostnames to it). */
     allowPort: (port: number) => void net.testAllow.ports.push(port),

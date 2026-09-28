@@ -1,12 +1,24 @@
 import { render } from "@react-email/components";
+import { reportSubject } from "@mendwell/core";
+import { AgencyDigestEmail, type AgencyDigestProps } from "./templates/agency-digest";
 import { AlertEmail, type AlertEmailProps } from "./templates/alert";
+import { FridayReportEmail, type FridayReportProps } from "./templates/friday-report";
 import { InvitationEmail, type InvitationEmailProps } from "./templates/invitation";
 import { MagicLinkEmail } from "./templates/magic-link";
 
-export type EmailMessage = { to: string; subject: string; html: string; text: string };
+export type EmailMessage = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  /** Mailtrap category (e.g. "report"); defaults to "transactional". */
+  category?: string;
+  /** Echoed back in Mailtrap's webhook events, e.g. { report_id } for open tracking. IDs only. */
+  customVariables?: Record<string, string>;
+};
 
 /** Anything that can deliver a rendered message: Mailtrap, a local outbox in dev, an array in tests. */
-export type Mailer = { send: (message: EmailMessage) => Promise<void> };
+export type Mailer = { send: (message: EmailMessage) => Promise<{ messageId?: string } | undefined> };
 
 export class EmailDeliveryError extends Error {
   override name = "EmailDeliveryError";
@@ -51,7 +63,8 @@ export function createMailtrapMailer({ token, from, sandboxInboxId, fetch: fetch
             subject: message.subject,
             html: message.html,
             text: message.text,
-            category: "transactional",
+            category: message.category ?? "transactional",
+            ...(message.customVariables ? { custom_variables: message.customVariables } : {}),
           }),
           signal: AbortSignal.timeout(15_000),
         });
@@ -60,6 +73,9 @@ export function createMailtrapMailer({ token, from, sandboxInboxId, fetch: fetch
       }
       // Status only: never the address, subject, body or Mailtrap's echoed payload (hard rule 8).
       if (!res.ok) throw new EmailDeliveryError(`Mailtrap rejected the message (HTTP ${res.status})`);
+      const json = (await res.json().catch(() => null)) as { message_ids?: unknown } | null;
+      const id = Array.isArray(json?.message_ids) ? json.message_ids[0] : undefined;
+      return typeof id === "string" ? { messageId: id } : {};
     },
   };
 }
@@ -81,5 +97,16 @@ export function alertEmail(input: AlertEmailProps) {
   return build(`${input.siteName}: ${input.headline}`, AlertEmail(input));
 }
 
-export type { AlertEmailProps };
+export function fridayReportEmail(input: FridayReportProps) {
+  return build(reportSubject(input.content), FridayReportEmail(input));
+}
+
+export function agencyDigestEmail(input: AgencyDigestProps) {
+  const verified = input.sites.reduce((n, s) => n + s.verified, 0);
+  const waiting = input.sites.reduce((n, s) => n + s.waiting, 0);
+  return build(`${input.orgName}: ${verified} ${verified === 1 ? "fix" : "fixes"} verified this week, ${waiting} waiting`, AgencyDigestEmail(input));
+}
+
+export type { AgencyDigestProps, AlertEmailProps, FridayReportProps };
+export type { FridayReportLinks } from "./templates/friday-report";
 export { mailerFromEnv, mailerKind, type MailEnv, type MailerKind } from "./from-env";

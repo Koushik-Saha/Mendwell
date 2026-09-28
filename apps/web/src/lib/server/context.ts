@@ -1,7 +1,7 @@
 import { createRepositories, type Db, type Repositories } from "@mendwell/db";
 import { createDb } from "@mendwell/db/client";
 import { createR2Store, createUnconfiguredStore, type ObjectStore } from "@mendwell/db/storage";
-import { approvalLinkKey, parseKeyring, type Keyring } from "@mendwell/core";
+import { derivedKey, parseKeyring, type Keyring } from "@mendwell/core";
 import { magicLinkEmail, type Mailer } from "@mendwell/email";
 import type { SafeFetchOptions } from "@mendwell/scanner/net";
 import { createAuth, MAGIC_LINK_TTL_SECONDS, type Auth } from "./auth";
@@ -11,6 +11,7 @@ import { createMailer } from "./mailer";
 
 export type ScanJob = { orgId: string; siteId: string; scanId: string; kind: "manual" };
 export type ApplyJob = { orgId: string; fixId: string; siteId: string };
+export type ReportJob = { orgId: string; siteId: string; periodKey: string; end: string; test: { to: string } };
 
 export type ServerContext = {
   env: Pick<ServerEnv, "BETTER_AUTH_URL">;
@@ -35,7 +36,22 @@ export type ServerContext = {
   enqueueApply: (job: ApplyJob) => Promise<void>;
   /** Signing key for email approval links, or null when APPROVAL_LINK_SECRET isn't set (links are refused). */
   approvalLinkKey: Buffer | null;
+  /** Signing key for 👍/👎 links in reports (same secret, different purpose). */
+  feedbackKey: Buffer | null;
+  /** Mailtrap's webhook signing secret, or null (events refused). */
+  mailtrapWebhookSecret: string | null;
+  /** Start report.site (a test report to one person). */
+  enqueueReport: (job: ReportJob) => Promise<void>;
 };
+
+function reportEnqueuer(env: ServerEnv): ServerContext["enqueueReport"] {
+  return async (job) => {
+    if (!env.TRIGGER_SECRET_KEY) throw new AppError("scans_unavailable", "Reports aren't set up on this server yet (Trigger.dev key missing).", 503);
+    const { configure, tasks } = await import("@trigger.dev/sdk");
+    configure({ secretKey: env.TRIGGER_SECRET_KEY });
+    await tasks.trigger("report.site", job, { idempotencyKey: `report:${job.periodKey}`, tags: [`site:${job.siteId}`] });
+  };
+}
 
 function applyEnqueuer(env: ServerEnv): ServerContext["enqueueApply"] {
   return async (job) => {
@@ -79,8 +95,9 @@ function build(): ServerContext {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     google: env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } : undefined,
-    sendMagicLink: async ({ email, url }) =>
-      mailer.send({ to: email, ...(await magicLinkEmail({ url, expiresInMinutes: MAGIC_LINK_TTL_SECONDS / 60 })) }),
+    sendMagicLink: async ({ email, url }) => {
+      await mailer.send({ to: email, ...(await magicLinkEmail({ url, expiresInMinutes: MAGIC_LINK_TTL_SECONDS / 60 })) });
+    },
   });
   const store =
     env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET
@@ -101,7 +118,10 @@ function build(): ServerContext {
     scansEnabled: Boolean(env.TRIGGER_SECRET_KEY),
     enqueueScan: scanEnqueuer(env),
     enqueueApply: applyEnqueuer(env),
-    approvalLinkKey: env.APPROVAL_LINK_SECRET ? approvalLinkKey(env.APPROVAL_LINK_SECRET) : null,
+    approvalLinkKey: env.APPROVAL_LINK_SECRET ? derivedKey(env.APPROVAL_LINK_SECRET, "approval-links:v1") : null,
+    feedbackKey: env.APPROVAL_LINK_SECRET ? derivedKey(env.APPROVAL_LINK_SECRET, "report-feedback:v1") : null,
+    mailtrapWebhookSecret: env.MAILTRAP_WEBHOOK_SECRET ?? null,
+    enqueueReport: reportEnqueuer(env),
   };
 }
 

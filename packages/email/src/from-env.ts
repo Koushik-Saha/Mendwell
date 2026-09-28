@@ -38,6 +38,7 @@ export function mailerFromEnv(env: MailEnv, options: { outboxDir: string }): Mai
       await writeFile(join(options.outboxDir, `${stamp}.html`), message.html, "utf8");
       await writeFile(join(options.outboxDir, `${stamp}.txt`), `To: ${message.to}\nSubject: ${message.subject}\n\n${message.text}`, "utf8");
       console.warn(`[dev-outbox] email written to ${stamp}.html`);
+      return {};
     },
   };
 }

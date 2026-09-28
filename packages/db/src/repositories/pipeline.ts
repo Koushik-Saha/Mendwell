@@ -280,6 +280,8 @@ export function systemSitesRepo(db: Db) {
             name: sites.name,
             timezone: sites.timezone,
             plan: organizations.plan,
+            orgType: organizations.type,
+            createdAt: sites.createdAt,
           })
           .from(sites)
           .innerJoin(organizations, eq(organizations.id, sites.orgId))

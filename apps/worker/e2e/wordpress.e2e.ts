@@ -122,7 +122,7 @@ function deps(over: Partial<FixWorkDeps> = {}): FixWorkDeps {
     db,
     keyring,
     store: createMemoryStore(),
-    mailer: { send: async () => {} },
+    mailer: { send: async () => ({}) },
     appUrl: "http://localhost:3000",
     userAgent: "MendwellBot/e2e",
     writesEnabled: true,

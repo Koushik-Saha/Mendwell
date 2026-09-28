@@ -239,6 +239,17 @@ const cases: Record<RouteKey, Case> = {
     reason:
       "No session: the signed, single-use email token is the credential and is bound to one fix and one recipient (fix-approvals.test.ts covers forged, reused, expired and protected-page links).",
   },
+  "GET /api/reports": { kind: "collection", leaks: (s) => [s.a.report.id] },
+  "GET /api/reports/[id]": { kind: "resource", params: (s) => ({ id: s.a.report.id }), controlStatus: 200 },
+  "POST /api/sites/[id]/test-report": { kind: "resource", params: (s) => ({ id: s.a.site.id }), controlStatus: 202 },
+  "POST /api/report-feedback": {
+    kind: "exempt",
+    reason: "No session: a signed token names one report, fix group and vote; the report row decides the org (reports.test.ts covers forged tokens).",
+  },
+  "POST /api/webhooks/mailtrap": {
+    kind: "exempt",
+    reason: "Called by Mailtrap: the Mailtrap-Signature HMAC over the raw body is the authentication, and it only marks our own report ids opened (reports.test.ts).",
+  },
   "POST /api/connector/pair": {
     kind: "exempt",
     reason:
