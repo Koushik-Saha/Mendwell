@@ -64,6 +64,10 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv({ ...base, DEV_NET_ALLOW: "localhost:8888" })).toThrow(/ip:port/);
   });
 
+  it("treats empty values as unset", () => {
+    expect(parseServerEnv({ ...base, ENCRYPTION_KEYS: "", ENCRYPTION_ACTIVE_KID: "", STRIPE_SECRET_KEY: "" }).ENCRYPTION_KEYS).toBeUndefined();
+  });
+
   it("requires all four R2 variables together", () => {
     expect(() => parseServerEnv({ ...base, R2_ACCOUNT_ID: "acc" })).toThrow(/all four R2_/);
   });

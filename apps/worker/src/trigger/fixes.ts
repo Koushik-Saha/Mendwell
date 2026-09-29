@@ -22,6 +22,7 @@ function fixWorkDeps(): FixWorkDeps {
     mailer: d.mailer,
     appUrl: d.env.APP_URL,
     userAgent: d.userAgent,
+    net: d.net,
     writesEnabled: d.env.WRITES_ENABLED === "true",
     billingEnabled: d.env.BILLING_ENABLED === "true",
     opsEmail: d.env.OPS_ALERT_EMAIL ?? null,

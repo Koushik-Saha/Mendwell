@@ -86,7 +86,9 @@ export type ServerEnv = z.infer<typeof schema>;
 
 /** Validate server env. The error names the variables that are wrong, never their values. */
 export function parseServerEnv(source: Record<string, string | undefined> = process.env): ServerEnv {
-  const result = schema.safeParse(source);
+  // Empty values count as unset (an env file with "KEY=" means "not configured").
+  const cleaned = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== undefined && v !== ""));
+  const result = schema.safeParse(cleaned);
   if (!result.success) {
     const problems = result.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid server environment:\n${problems}`);

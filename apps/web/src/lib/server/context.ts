@@ -4,7 +4,7 @@ import { createDb } from "@mendwell/db/client";
 import { createR2Store, createUnconfiguredStore, type ObjectStore } from "@mendwell/db/storage";
 import { derivedKey, parseKeyring, type Keyring } from "@mendwell/core";
 import { magicLinkEmail, type Mailer } from "@mendwell/email";
-import type { SafeFetchOptions } from "@mendwell/scanner/net";
+import { devNetFromEnv, type SafeFetchOptions } from "@mendwell/scanner/net";
 import { createAuth, MAGIC_LINK_TTL_SECONDS, type Auth } from "./auth";
 import { parseServerEnv, type ServerEnv } from "./env";
 import { AppError } from "./errors";
@@ -141,8 +141,7 @@ function build(): ServerContext {
       ? createR2Store({ accountId: env.R2_ACCOUNT_ID, accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY, bucket: env.R2_BUCKET })
       : createUnconfiguredStore(); // development without R2: no screenshots
   const keyring = env.ENCRYPTION_KEYS ? parseKeyring(env) : null;
-  const devAllow = env.DEV_NET_ALLOW?.split(",").map((pair) => pair.split(":") as [string, string]);
-  const net = devAllow ? { testAllow: { addresses: [...new Set(devAllow.map(([a]) => a))], ports: devAllow.map(([, p]) => Number(p)) } } : {};
+  const net = devNetFromEnv(env.DEV_NET_ALLOW);
   return {
     env,
     db,

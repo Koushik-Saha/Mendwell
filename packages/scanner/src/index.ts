@@ -20,4 +20,4 @@ export {
 export { parseRobots, robotsFromResponse, type Robots } from "./robots";
 export { scanSite, type ScannedIssue, type ScanOptions, type ScanResult } from "./scan";
 export { parseSitemap } from "./sitemap";
-export { AddressError, resolvePinned, type ResolvedAddress, type Resolver, type TestAllow } from "./net/resolve";
+export { AddressError, devNetFromEnv, resolvePinned, type ResolvedAddress, type Resolver, type TestAllow } from "./net/resolve";

@@ -13,6 +13,6 @@ export const publicScanTask = task({
   retry: { maxAttempts: 2, minTimeoutInMs: 5_000, maxTimeoutInMs: 30_000 },
   run: async (payload: { publicScanId: string }) => {
     const deps = workerDeps();
-    return runPublicScan({ db: deps.db, botInfoUrl: deps.botInfoUrl }, payload);
+    return runPublicScan({ db: deps.db, botInfoUrl: deps.botInfoUrl, net: deps.net }, payload);
   },
 });

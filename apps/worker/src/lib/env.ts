@@ -17,6 +17,8 @@ const schema = z
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
     /** Signs approval and 👍/👎 links in report emails. Same value as the web app. */
     APPROVAL_LINK_SECRET: z.string().min(32).optional(),
+    /** DEVELOPMENT ONLY: "127.0.0.1:8888" lets the worker reach a local wp-env WordPress. Refused in production. */
+    DEV_NET_ALLOW: z.string().regex(/^(\d{1,3}(\.\d{1,3}){3}:\d{1,5})(,\d{1,3}(\.\d{1,3}){3}:\d{1,5})*$/, "must be ip:port[,ip:port]").optional(),
     /** Fixes need a live subscription. Must be "true" in production; off in development. */
     BILLING_ENABLED: z.enum(["true", "false"]).default("false"),
     /** The global kill switch (hard rule 3). Off unless explicitly "true". */
@@ -36,6 +38,7 @@ const schema = z
     }
     if (env.NODE_ENV === "production") {
       if (!env.ENCRYPTION_KEYS) ctx.addIssue({ code: "custom", path: ["ENCRYPTION_KEYS"], message: "required in production" });
+      if (env.DEV_NET_ALLOW) ctx.addIssue({ code: "custom", path: ["DEV_NET_ALLOW"], message: "must be unset in production" });
       if (env.BILLING_ENABLED !== "true") ctx.addIssue({ code: "custom", path: ["BILLING_ENABLED"], message: "must be true in production" });
       if (!env.APPROVAL_LINK_SECRET) ctx.addIssue({ code: "custom", path: ["APPROVAL_LINK_SECRET"], message: "required in production" });
       if (!env.ANTHROPIC_API_KEY) ctx.addIssue({ code: "custom", path: ["ANTHROPIC_API_KEY"], message: "required in production" });
@@ -49,7 +52,9 @@ export type WorkerEnv = z.infer<typeof schema>;
 
 /** Names the variables that are wrong, never their values. */
 export function parseWorkerEnv(source: Record<string, string | undefined> = process.env): WorkerEnv {
-  const result = schema.safeParse(source);
+  // Empty values count as unset (an env file with "KEY=" means "not configured").
+  const cleaned = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== undefined && v !== ""));
+  const result = schema.safeParse(cleaned);
   if (!result.success) {
     throw new Error(`Invalid worker environment:\n${result.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n")}`);
   }

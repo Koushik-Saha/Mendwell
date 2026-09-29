@@ -14,7 +14,7 @@ export const fixProposeTask = task({
   retry: { maxAttempts: 2, minTimeoutInMs: 60_000, maxTimeoutInMs: 300_000, factor: 2 },
   run: async (payload: FixProposePayload) => {
     const deps = workerDeps();
-    const outcome = await runFixPropose({ db: deps.db, keyring: deps.keyring, ai: deps.ai, userAgent: deps.userAgent, billingEnabled: deps.env.BILLING_ENABLED === "true" }, payload);
+    const outcome = await runFixPropose({ db: deps.db, keyring: deps.keyring, ai: deps.ai, userAgent: deps.userAgent, net: deps.net, billingEnabled: deps.env.BILLING_ENABLED === "true" }, payload);
     // GATE (PROJECT_SPEC §3): auto-approved fixes go straight to fix.apply, which re-checks every gate.
     if (outcome.status === "done") for (const fixId of outcome.autoFixIds) await enqueueApply({ orgId: payload.orgId, fixId, siteId: payload.siteId });
     return outcome;

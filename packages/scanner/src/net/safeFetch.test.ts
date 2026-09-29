@@ -378,3 +378,13 @@ describe("requests against a local server (test allowance for 127.0.0.1:<port> o
     await expectCode(safeFetch(`http://127.0.0.1:${closedPort}/`), "network");
   });
 });
+
+describe("devNetFromEnv", () => {
+  it("turns DEV_NET_ALLOW into a test allowance and pins localhost to IPv4", async () => {
+    const { devNetFromEnv } = await import("./resolve");
+    expect(devNetFromEnv(undefined)).toEqual({});
+    const net = devNetFromEnv("127.0.0.1:8888,127.0.0.1:8889");
+    expect(net.testAllow).toEqual({ addresses: ["127.0.0.1"], ports: [8888, 8889] });
+    expect(await net.resolver?.("localhost")).toEqual([{ address: "127.0.0.1", family: 4 }]);
+  });
+});

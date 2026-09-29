@@ -20,7 +20,7 @@ export const scanSiteTask = task({
   run: async (payload: ScanSitePayload, { ctx }) => {
     const deps = workerDeps();
     const outcome = await runSiteScan(
-      { db: deps.db, store: deps.store, botInfoUrl: deps.botInfoUrl },
+      { db: deps.db, store: deps.store, botInfoUrl: deps.botInfoUrl, net: deps.net },
       payload,
       { runId: ctx.run.id, isFinalAttempt: ctx.attempt.number >= SCAN_MAX_ATTEMPTS },
     );

@@ -34,7 +34,7 @@ export const uptimePing = schedules.task({
   run: async (payload) => {
     const deps = workerDeps();
     const sites = await systemSitesRepo(deps.db).activeVerified();
-    return runUptimeSweep({ db: deps.db, mailer: deps.mailer, appUrl: deps.env.APP_URL, userAgent: deps.userAgent, now: () => payload.timestamp }, sites);
+    return runUptimeSweep({ db: deps.db, mailer: deps.mailer, appUrl: deps.env.APP_URL, userAgent: deps.userAgent, net: deps.net, now: () => payload.timestamp }, sites);
   },
 });
 
@@ -45,6 +45,6 @@ export const sslCheck = schedules.task({
   run: async (payload) => {
     const deps = workerDeps();
     const sites = await systemSitesRepo(deps.db).activeVerified();
-    return runSslSweep({ db: deps.db, mailer: deps.mailer, appUrl: deps.env.APP_URL, userAgent: deps.userAgent, now: () => payload.timestamp }, sites);
+    return runSslSweep({ db: deps.db, mailer: deps.mailer, appUrl: deps.env.APP_URL, userAgent: deps.userAgent, net: deps.net, now: () => payload.timestamp }, sites);
   },
 });

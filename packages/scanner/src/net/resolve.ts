@@ -21,6 +21,21 @@ export class AddressError extends Error {
 export const systemResolver: Resolver = async (hostname) =>
   (await dns.lookup(hostname, { all: true, verbatim: true })).map((a) => ({ address: a.address, family: a.family === 6 ? 6 : 4 }));
 
+/**
+ * DEVELOPMENT ONLY: DEV_NET_ALLOW ("127.0.0.1:8888,127.0.0.1:8889") lets the app and the worker
+ * reach a local WordPress (wp-env) past the SSRF guard, and resolves "localhost" to 127.0.0.1
+ * (wp-env listens on IPv4 only). Refused in production, like every test allowance.
+ */
+export function devNetFromEnv(value: string | undefined): { testAllow?: TestAllow; resolver?: Resolver } {
+  if (!value) return {};
+  if (process.env.NODE_ENV === "production") throw new Error("DEV_NET_ALLOW must be unset in production");
+  const pairs = value.split(",").map((pair) => pair.trim().split(":") as [string, string]);
+  return {
+    testAllow: { addresses: [...new Set(pairs.map(([address]) => address))], ports: pairs.map(([, port]) => Number(port)) },
+    resolver: async (host) => (host === "localhost" ? [{ address: "127.0.0.1", family: 4 }] : systemResolver(host)),
+  };
+}
+
 export function assertTestAllowOutsideProduction(testAllow: TestAllow | undefined) {
   if (testAllow && process.env.NODE_ENV === "production") {
     throw new Error("testAllow is for tests only and is refused in production");
