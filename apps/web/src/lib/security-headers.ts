@@ -59,7 +59,7 @@ export function createNonce(): string {
 }
 
 /** App pages that need a session. Everything else (sign-in, invites, API, static) is handled elsewhere. */
-export const protectedPrefixes = ["/dashboard", "/sites", "/approvals", "/fixes", "/reports", "/settings", "/onboarding"];
+export const protectedPrefixes = ["/dashboard", "/sites", "/approvals", "/fixes", "/reports", "/settings", "/onboarding", "/admin"];
 
 export function isProtectedPath(pathname: string): boolean {
   return protectedPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));

@@ -1,5 +1,5 @@
 import { VERIFY_MAX_ATTEMPTS } from "@mendwell/core";
-import { systemFixesRepo, type Db } from "@mendwell/db";
+import { platformRepo, systemFixesRepo, type Db } from "@mendwell/db";
 import { logger } from "@trigger.dev/sdk";
 import type { FixTaskPayload } from "./fix-apply";
 
@@ -19,11 +19,12 @@ export type SweepQueue = {
 export async function runFixSweep(deps: { db: Db; writesEnabled: boolean; now?: () => Date }, queue: SweepQueue) {
   const now = deps.now?.() ?? new Date();
   const rows = await systemFixesRepo(deps.db).needingWork(new Date(now.getTime() - STUCK_AFTER_MS));
+  const writesOn = deps.writesEnabled && (await platformRepo(deps.db).writesSwitch()).enabled;
   const summary = { apply: 0, verify: 0, rollback: 0 };
   for (const row of rows) {
     const payload = { orgId: row.orgId, fixId: row.fixId, siteId: row.siteId };
     if (row.status === "approved" || row.status === "edited" || row.status === "applying") {
-      if (!deps.writesEnabled) continue;
+      if (!writesOn) continue;
       await queue.apply(payload);
       summary.apply++;
     } else if (row.status === "applied" || row.status === "verifying") {

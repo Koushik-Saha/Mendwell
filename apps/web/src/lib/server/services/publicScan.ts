@@ -3,6 +3,7 @@ import { PUBLIC_SCAN, type PublicScanResult } from "@mendwell/core";
 import { botOptOutsRepo, publicScansRepo } from "@mendwell/db";
 import { server } from "../context";
 import { AppError, notFound } from "../errors";
+import { enforceRateLimit } from "../rate-limit";
 
 /** The first address in X-Forwarded-For (set by the platform), or null. Only ever hashed. */
 export function clientIp(headers: Headers): string | null {
@@ -105,6 +106,7 @@ export async function publicScanView(slug: string): Promise<PublicScanView> {
 
 /** /bot opt-out: the host (and its subdomains) is never publicly scanned again. */
 export async function optOut(input: { host: string; turnstileToken?: string; ip: string | null }) {
+  await enforceRateLimit("optOut", server().hashIp(input.ip ?? "unknown"));
   const host = new URL(normalizePublicUrl(input.host)).hostname.replace(/^www\./, "");
   await checkHuman(input.turnstileToken, input.ip);
   await botOptOutsRepo(server().db).add(host);

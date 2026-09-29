@@ -266,6 +266,10 @@ const cases: Record<RouteKey, Case> = {
   "POST /api/public-scan": { kind: "exempt", reason: "The free public scan: no session and no org; public scans belong to nobody (public-scan.test.ts covers limits and Turnstile)." },
   "GET /api/public-scan/[slug]": { kind: "exempt", reason: "Public result by unguessable share slug; public scans belong to no org and hold only public-page findings." },
   "POST /api/bot/opt-out": { kind: "exempt", reason: "Public opt-out form for site owners: no session, no org data; only adds a host to the do-not-scan list." },
+  "POST /api/admin/writes": {
+    kind: "exempt",
+    reason: "Operator only (PLATFORM_ADMIN_EMAILS + 2FA), not an org role: everyone else gets a 404 (admin.test.ts). Takes no org or resource id.",
+  },
   "POST /api/connector/pair": {
     kind: "exempt",
     reason:

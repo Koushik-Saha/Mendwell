@@ -1,6 +1,6 @@
 import { ANOMALY_WRITES_PER_HOUR, billingState, ConnectorError, unsafeOrgId, type ConnectorClient, type ConnectorTransport, type FixValue, type Keyring, type OrgId } from "@mendwell/core";
-import { createRepositories, type Db, type ObjectStore } from "@mendwell/db";
-import type { Mailer } from "@mendwell/email";
+import { createRepositories, platformRepo, type Db, type ObjectStore } from "@mendwell/db";
+import { sendOpsAlert, type Mailer } from "@mendwell/email";
 import type { Resolver, TestAllow } from "@mendwell/scanner";
 import { logger } from "@trigger.dev/sdk";
 import type { Browser } from "playwright";
@@ -22,6 +22,8 @@ export type FixWorkDeps = {
   billingEnabled?: boolean;
   /** Where anomaly auto-pauses are reported (the operator), if set. */
   opsEmail?: string | null;
+  /** Push webhook for operator alerts (e.g. an ntfy.sh topic), if set. */
+  opsWebhookUrl?: string | null;
   net?: { resolver?: Resolver; testAllow?: TestAllow };
   browser?: Browser;
   connectorTransport?: ConnectorTransport;
@@ -90,7 +92,8 @@ export async function runFixApply(deps: FixWorkDeps, payload: FixTaskPayload, ru
   // verification) can settle it. The sweeper brings it back once the gate opens.
   const requeue = async (reason: string): Promise<ApplyOutcome> => ({ status: "skipped", reason });
 
-  if (!deps.writesEnabled) return requeue("writes_disabled");
+  // Global kill switch (hard rule 3): the env flag, and the operator's switch in /admin.
+  if (!deps.writesEnabled || !(await platformRepo(deps.db).writesSwitch()).enabled) return requeue("writes_disabled");
   const subscription = await repos.subscriptions.get(orgId);
   const billing = billingState(subscription, { billingEnabled: deps.billingEnabled ?? false });
   if (!billing.fixesAllowed) return requeue(`billing_${billing.mode}`); // scans and reports carry on
@@ -135,11 +138,10 @@ export async function runFixApply(deps: FixWorkDeps, payload: FixTaskPayload, ru
       body: `Mendwell made more than ${ANOMALY_WRITES_PER_HOUR} changes in the last hour, which is more than we expect, so we stopped. Nothing was undone.`,
       action: "Review recent changes, then resume each site from its Settings tab.",
     });
-    if (deps.opsEmail) {
-      await deps.mailer
-        .send({ to: deps.opsEmail, subject: "Mendwell: org auto-paused", text: `Org ${orgId} auto-paused after ${ANOMALY_WRITES_PER_HOUR} writes/hour.`, html: `<p>Org ${orgId} auto-paused after ${ANOMALY_WRITES_PER_HOUR} writes/hour.</p>` })
-        .catch(() => logger.warn("ops.email.failed", { orgId }));
-    }
+    await sendOpsAlert(
+      { mailer: deps.mailer, email: deps.opsEmail, webhookUrl: deps.opsWebhookUrl },
+      { title: "Org auto-paused", body: `Org ${orgId} passed ${ANOMALY_WRITES_PER_HOUR} writes in an hour; all its sites are paused (${paused.length}).` },
+    );
     logger.error("fix.apply.anomaly_pause", { orgId, sites: paused.length });
     return requeue("anomaly_paused");
   }

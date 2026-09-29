@@ -64,6 +64,9 @@ export async function createHarness() {
     // Off by default, like development; billing tests switch it on with a fake gateway.
     billing,
     enqueuePublicScan: async (id) => void publicScanJobs.push(id),
+    platformAdmins: ["operator@example.test"],
+    ops: { email: "ops@example.test", webhookUrl: null },
+    securityContact: "security@example.test",
     verifyTurnstile: async (token) => token === "turnstile-ok",
     hashIp: (ip) => `hash:${ip}`,
   });

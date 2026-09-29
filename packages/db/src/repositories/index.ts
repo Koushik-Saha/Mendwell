@@ -54,6 +54,7 @@ export type Repositories = ReturnType<typeof createRepositories>;
 export type { Actor, AuditEntry } from "./orgs";
 export { systemReportsRepo } from "./reports";
 export { botOptOutsRepo, publicScansRepo } from "./publicScans";
+export { adminStatsRepo, opsAlertsRepo, opsMetricsRepo, platformRepo, rateLimitRepo, retentionRepo } from "./platform";
 export { systemBillingRepo, type SubscriptionInput } from "./billing";
 export { FixStateConflictError, systemFixesRepo, type AiUsageEntry, type FixExtra } from "./fixes";
 export { systemSitesRepo, urlHash, type IssueRow, type ScanCounts, type ScanProgress } from "./pipeline";

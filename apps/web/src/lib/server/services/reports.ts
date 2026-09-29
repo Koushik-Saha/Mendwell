@@ -3,6 +3,7 @@ import { verifyFeedbackToken, type SiteReportContent } from "@mendwell/core";
 import { systemReportsRepo } from "@mendwell/db";
 import { server } from "../context";
 import { AppError, notFound } from "../errors";
+import { enforceRateLimit } from "../rate-limit";
 import type { OrgContext } from "../session";
 import { getSite } from "./sites";
 
@@ -71,8 +72,9 @@ export async function feedbackView(token: string) {
  * Record a 👍/👎 for one fix group of one report. The signed token names the report, group and
  * vote; the report row tells us the org. Voting again changes the vote.
  */
-export async function recordFeedback(token: string) {
-  const { db, feedbackKey } = server();
+export async function recordFeedback(token: string, ip: string | null = null) {
+  const { db, feedbackKey, hashIp } = server();
+  await enforceRateLimit("feedback", hashIp(ip ?? "unknown"));
   const parsed = feedbackKey ? verifyFeedbackToken(feedbackKey, token) : null;
   if (!parsed) throw notFound("That feedback link");
   const orgId = await systemReportsRepo(db).orgOf(parsed.reportId);

@@ -22,6 +22,7 @@ import { createRepositories, FixStateConflictError, type Actor, type Repositorie
 import { server } from "../context";
 import { AppError, forbidden, notFound } from "../errors";
 import type { OrgContext } from "../session";
+import { enforceRateLimit } from "../rate-limit";
 import { connectorFor } from "./connector";
 import { getSite } from "./sites";
 
@@ -190,11 +191,13 @@ async function decide(orgId: OrgId, fixId: string, decision: Decision, by: { use
 
 export async function decideFix(ctx: OrgContext, fixId: string, decision: Decision) {
   // Members may approve and reject (PROJECT_SPEC §2).
+  await enforceRateLimit("decide", ctx.user.id);
   return decide(ctx.orgId, fixId, decision, { userId: ctx.user.id, via: "app", actor: `user:${ctx.user.id}` });
 }
 
 /** Approve or reject several pending fixes (no edits). Each is decided on its own; failures are reported, not fatal. */
 export async function decideBatch(ctx: OrgContext, fixIds: string[], decision: { type: "approve" } | { type: "reject"; reason: RejectReason }) {
+  await enforceRateLimit("batch", ctx.user.id);
   const done: string[] = [];
   const skipped: { id: string; reason: string }[] = [];
   for (const id of fixIds) {
@@ -220,6 +223,7 @@ export async function undoFix(ctx: OrgContext, fixId: string) {
   const fix = await repos.fixes.get(ctx.orgId, fixId);
   if (!fix) throw notFound("That fix");
   if (!hasRole(ctx.role, "admin")) throw forbidden("Only admins and owners can undo changes.");
+  await enforceRateLimit("undo", ctx.user.id);
   if (fix.status !== "verified") throw new AppError("conflict", "Only a verified change can be undone.", 409);
   const client = await connectorFor(ctx, fix.siteId);
   if (!client) throw new AppError("connector_unreachable", "This site isn't connected, so Mendwell can't undo the change. You can undo it in WordPress under Settings → Mendwell.", 409);
@@ -293,8 +297,9 @@ export async function approvalLinkView(token: string) {
 }
 
 /** Approve or reject through an email link. Consumed first, so a link can never decide twice. */
-export async function decideByLink(token: string, decision: { type: "approve" } | { type: "reject"; reason: RejectReason }) {
-  const { repos, approvalLinkKey } = server();
+export async function decideByLink(token: string, decision: { type: "approve" } | { type: "reject"; reason: RejectReason }, ip: string | null = null) {
+  const { repos, approvalLinkKey, hashIp } = server();
+  await enforceRateLimit("emailLink", hashIp(ip ?? "unknown"));
   const view = await approvalLinkView(token);
   if (view.state !== "ready") {
     const messages: Record<Exclude<LinkState, "ready">, [number, string]> = {

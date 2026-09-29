@@ -524,3 +524,44 @@ export const auditLog = pgTable(
     check("audit_log_actor_format", sql`${t.actor} IN ('system', 'worker') OR ${t.actor} ~ '^user:[0-9a-f-]{36}$'`),
   ],
 );
+
+/**
+ * Operator-level settings (not tenant data). "writes_enabled" is the global kill switch the
+ * operator flips from /admin; it can only turn writes off on top of WRITES_ENABLED, never on.
+ */
+export const platformSettings = pgTable("platform_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+});
+
+/** What the operator did in /admin (kill switch flips). IDs only. */
+export const platformEvents = pgTable(
+  "platform_events",
+  {
+    id: id(),
+    actor: text("actor").notNull(),
+    action: text("action").notNull(),
+    meta: jsonb("meta").notNull().default({}),
+    at: timestamptz("at").notNull().defaultNow(),
+  },
+  (t) => [index("platform_events_at_idx").on(t.at)],
+);
+
+/** Operator alerts already sent (dedupe per condition and window, SECURITY.md §2 Monitoring). */
+export const opsAlerts = pgTable("ops_alerts", {
+  key: text("key").primaryKey(),
+  sentAt: timestamptz("sent_at").notNull().defaultNow(),
+});
+
+/** Fixed-window counters for app rate limits (approvals, email links, feedback). Keys hold hashes and ids only. */
+export const rateLimitHits = pgTable(
+  "rate_limit_hits",
+  {
+    key: text("key").notNull(),
+    windowStart: timestamptz("window_start").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ name: "rate_limit_hits_pk", columns: [t.key, t.windowStart] })],
+);

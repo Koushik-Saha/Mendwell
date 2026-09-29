@@ -57,6 +57,13 @@
       "when": 1790637237401,
       "tag": "0007_public_scan",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790705581573,
+      "tag": "0008_platform",
+      "breakpoints": true
     }
   ]
 }

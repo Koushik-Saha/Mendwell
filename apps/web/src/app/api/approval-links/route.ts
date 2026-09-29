@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { parseJson, route } from "@/lib/server/http";
 import { decideByLink } from "@/lib/server/services/fixes";
+import { clientIp } from "@/lib/server/services/publicScan";
 
 const body = z.discriminatedUnion("decision", [
   z.strictObject({ token: z.string().min(10).max(200), decision: z.literal("approve") }),
@@ -20,6 +21,6 @@ const body = z.discriminatedUnion("decision", [
  */
 export const POST = route(async (req) => {
   const input = await parseJson(req, body);
-  const result = await decideByLink(input.token, input.decision === "approve" ? { type: "approve" } : { type: "reject", reason: input.reason });
+  const result = await decideByLink(input.token, input.decision === "approve" ? { type: "approve" } : { type: "reject", reason: input.reason }, clientIp(req.headers));
   return NextResponse.json(result);
 });

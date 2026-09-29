@@ -10,5 +10,7 @@ export default defineConfig({
     // Each file holds its own PGlite (and the worker's, Chromium) in memory. Capped so the whole
     // repo testing at once doesn't swap on a small machine (the timeouts we saw were memory, not CPU).
     maxWorkers: 3,
+    // Build the migrated test-database snapshot once, before the workers start.
+    globalSetup: ["../../packages/db/src/test-global-setup.ts"],
   },
 });

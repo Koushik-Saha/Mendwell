@@ -23,6 +23,13 @@ const schema = z
     DEV_NET_ALLOW: z.string().regex(/^(\d{1,3}(\.\d{1,3}){3}:\d{1,5})(,\d{1,3}(\.\d{1,3}){3}:\d{1,5})*$/, "must be ip:port[,ip:port]").optional(),
     /** Signs one-time approval links in emails (SECURITY.md T10). Same value in the worker. */
     APPROVAL_LINK_SECRET: z.string().min(32, "must be at least 32 characters (openssl rand -base64 32)").optional(),
+    /** Operator accounts allowed into /admin (comma-separated emails; they must also use 2FA). */
+    PLATFORM_ADMIN_EMAILS: z.string().optional(),
+    /** Operator alerts: an email, and a push webhook such as https://ntfy.sh/<secret-topic>. */
+    OPS_ALERT_EMAIL: z.email().optional(),
+    OPS_ALERT_WEBHOOK_URL: z.url().optional(),
+    /** Where vulnerability reports go (shown on /security). */
+    SECURITY_CONTACT_EMAIL: z.email().optional(),
     /** Cloudflare Turnstile (public scan and bot opt-out forms). Both required in production. */
     TURNSTILE_SECRET: z.string().min(1).optional(),
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
@@ -55,6 +62,8 @@ const schema = z
       ctx.addIssue({ code: "custom", path: ["STRIPE_SECRET_KEY"], message: "STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are required when BILLING_ENABLED is true" });
     }
     if (env.NODE_ENV === "production") {
+      if (!env.SECURITY_CONTACT_EMAIL) ctx.addIssue({ code: "custom", path: ["SECURITY_CONTACT_EMAIL"], message: "required in production (shown on /security)" });
+      if (!env.OPS_ALERT_EMAIL && !env.OPS_ALERT_WEBHOOK_URL) ctx.addIssue({ code: "custom", path: ["OPS_ALERT_EMAIL"], message: "set OPS_ALERT_EMAIL or OPS_ALERT_WEBHOOK_URL in production" });
       if (!env.TURNSTILE_SECRET || !env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) ctx.addIssue({ code: "custom", path: ["TURNSTILE_SECRET"], message: "TURNSTILE_SECRET and NEXT_PUBLIC_TURNSTILE_SITE_KEY are required in production" });
       if (env.BILLING_ENABLED !== "true") ctx.addIssue({ code: "custom", path: ["BILLING_ENABLED"], message: "must be true in production" });
       if (env.DEV_NET_ALLOW) ctx.addIssue({ code: "custom", path: ["DEV_NET_ALLOW"], message: "must be unset in production" });

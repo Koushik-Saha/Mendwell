@@ -50,6 +50,11 @@ export type ServerContext = {
   verifyTurnstile: ((token: string, ip: string | null) => Promise<boolean>) | null;
   /** Salted, one-way hash of a visitor's IP for rate limits (never stored raw). */
   hashIp: (ip: string) => string;
+  /** Operator emails allowed into /admin (lowercase). */
+  platformAdmins: string[];
+  /** Operator alert channel (SECURITY.md §2 Monitoring). */
+  ops: { email: string | null; webhookUrl: string | null };
+  securityContact: string | null;
   /** Billing: off in development (nothing is limited); on in production with Stripe. */
   billing: { enabled: boolean; gateway: BillingGateway | null; appUrl: string };
 };
@@ -155,6 +160,9 @@ function build(): ServerContext {
     mailtrapWebhookSecret: env.MAILTRAP_WEBHOOK_SECRET ?? null,
     enqueueReport: reportEnqueuer(env),
     enqueuePublicScan: publicScanEnqueuer(env),
+    platformAdmins: (env.PLATFORM_ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
+    ops: { email: env.OPS_ALERT_EMAIL ?? null, webhookUrl: env.OPS_ALERT_WEBHOOK_URL ?? null },
+    securityContact: env.SECURITY_CONTACT_EMAIL ?? null,
     verifyTurnstile: env.TURNSTILE_SECRET ? turnstileVerifier(env.TURNSTILE_SECRET) : null,
     hashIp: (ip) => createHmac("sha256", env.BETTER_AUTH_SECRET).update(`ip-hash:v1:${ip}`).digest("hex").slice(0, 32),
     billing: {

@@ -115,3 +115,4 @@ export function agencyDigestEmail(input: AgencyDigestProps) {
 export type { AgencyDigestProps, AlertEmailProps, FridayReportProps };
 export type { FridayReportLinks } from "./templates/friday-report";
 export { mailerFromEnv, mailerKind, type MailEnv, type MailerKind } from "./from-env";
+export { sendOpsAlert, type OpsChannel } from "./ops";

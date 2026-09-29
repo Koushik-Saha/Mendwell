@@ -25,6 +25,7 @@ function fixWorkDeps(): FixWorkDeps {
     writesEnabled: d.env.WRITES_ENABLED === "true",
     billingEnabled: d.env.BILLING_ENABLED === "true",
     opsEmail: d.env.OPS_ALERT_EMAIL ?? null,
+    opsWebhookUrl: d.env.OPS_ALERT_WEBHOOK_URL ?? null,
     queue: { verify: (payload, delaySeconds) => enqueueVerify(payload, delaySeconds) },
   };
 }

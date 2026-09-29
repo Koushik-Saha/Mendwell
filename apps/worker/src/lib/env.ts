@@ -23,6 +23,8 @@ const schema = z
     WRITES_ENABLED: z.enum(["true", "false"]).default("false"),
     /** The operator's address for anomaly auto-pauses (SECURITY.md §2 Monitoring). */
     OPS_ALERT_EMAIL: z.email().optional(),
+    /** Push alerts to the operator's phone, e.g. https://ntfy.sh/<secret-topic>. */
+    OPS_ALERT_WEBHOOK_URL: z.url().optional(),
     AI_MODEL_VISION: z.string().min(1).default("claude-sonnet-5"),
     AI_MODEL_TEXT: z.string().min(1).default("claude-sonnet-5"),
   })

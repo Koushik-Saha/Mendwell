@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +29,8 @@ function migrationsHash(): string {
 
 let snapshotPromise: Promise<Blob> | undefined;
 
+const snapshotFile = () => join(tmpdir(), `mendwell-pglite-${migrationsHash()}.tar`);
+
 /**
  * An empty database with every migration applied, as a PGlite data-dir dump. Built once and
  * cached in the temp dir (keyed by the migrations), so each test file loads it in ~0.2 s instead
@@ -36,7 +38,7 @@ let snapshotPromise: Promise<Blob> | undefined;
  */
 function migratedSnapshot(): Promise<Blob> {
   snapshotPromise ??= (async () => {
-    const file = join(tmpdir(), `mendwell-pglite-${migrationsHash()}.tar`);
+    const file = snapshotFile();
     try {
       return new Blob([await readFile(file)]);
     } catch {
@@ -53,6 +55,19 @@ function migratedSnapshot(): Promise<Blob> {
     return dump;
   })();
   return snapshotPromise;
+}
+
+/**
+ * Vitest globalSetup: build the snapshot once, before any test worker starts (otherwise every
+ * worker builds its own after a migration changes, all at once), and drop stale snapshots.
+ */
+export async function prepareTestDbSnapshot() {
+  const current = snapshotFile();
+  for (const name of readdirSync(tmpdir())) {
+    const path = join(tmpdir(), name);
+    if (/^mendwell-pglite-[0-9a-f]{16}\.tar(\..*)?$/.test(name) && path !== current) await rm(path, { force: true });
+  }
+  await migratedSnapshot();
 }
 
 /**

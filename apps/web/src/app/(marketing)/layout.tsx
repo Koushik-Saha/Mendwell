@@ -36,6 +36,9 @@ export default async function MarketingLayout({ children }: { children: React.Re
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="max-w-[60ch]">Mendwell fixes common issues and verifies each fix. It does not certify ADA/WCAG compliance.</p>
           <nav aria-label="Footer" className="flex gap-4">
+            <Link href="/security" className="hover:text-foreground">
+              Security
+            </Link>
             <Link href="/bot" className="hover:text-foreground">
               About MendwellBot
             </Link>

@@ -173,8 +173,9 @@ describe("webhooks", () => {
     const outboxBefore = h.outbox.length;
     await webhook("invoice.payment_failed", { id: "in_1", parent: { subscription_details: { subscription: subId } } });
     expect(await orgBillingState(a.orgId as OrgId)).toMatchObject({ mode: "past_due", fixesAllowed: false, scansAllowed: true, banner: { tone: "alert" } });
-    expect(h.outbox.slice(outboxBefore).map((m) => m.subject)).toEqual(["Mendwell: payment failed, fixes are paused"]);
-    expect(h.outbox.at(-1)?.to).toBe(a.user.email);
+    expect(h.outbox.slice(outboxBefore).map((m) => m.subject)).toEqual(["Mendwell: payment failed, fixes are paused", "Mendwell ops: Stripe payment failed"]);
+    expect(h.outbox.at(-2)?.to).toBe(a.user.email);
+    expect(h.outbox.at(-1)?.to).toBe("ops@example.test");
 
     sub.status = "active";
     await webhook("invoice.paid", { id: "in_2", subscription: subId });

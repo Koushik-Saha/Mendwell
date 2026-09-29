@@ -1,5 +1,5 @@
 import { connectorSecretContext, encrypt, parseKeyring, verifySignature, type ConnectorTransport, type OrgId } from "@mendwell/core";
-import { createMemoryStore, createRepositories, type Db, type Repositories } from "@mendwell/db";
+import { createMemoryStore, createRepositories, platformRepo, type Db, type Repositories } from "@mendwell/db";
 import { alerts, fixes, issues, scans, siteCategories, sites, subscriptions } from "@mendwell/db/schema";
 import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { EmailMessage } from "@mendwell/email";
@@ -234,6 +234,19 @@ describe("fix.apply gates", () => {
     expect(await runFixApply(harness(fake).deps, pending.payload, notFinal)).toEqual({ status: "skipped", reason: "status_pending" });
     expect(fake.wp.calls.filter((c) => c.includes("/fix/"))).toEqual([]);
     expect((await statusOf(s.fixId))?.status).toBe("approved");
+  });
+
+  it("stops every apply when the operator flips the switch in /admin", async () => {
+    const s = await setup("gate-operator");
+    const fake = fakeWordPress();
+    await platformRepo(db).setWritesSwitch(false, "user:operator");
+    try {
+      expect(await runFixApply(harness(fake).deps, s.payload, notFinal)).toEqual({ status: "skipped", reason: "writes_disabled" });
+      expect(fake.wp.calls).toEqual([]);
+    } finally {
+      await platformRepo(db).setWritesSwitch(true, "user:operator");
+    }
+    expect(await runFixApply(harness(fake).deps, s.payload, notFinal)).toMatchObject({ status: "applied" });
   });
 
   it("mirrors a pause set in WordPress admin into the app", async () => {

@@ -11,7 +11,7 @@ import {
   type PlanId,
 } from "@mendwell/core";
 import { systemBillingRepo } from "@mendwell/db";
-import { noticeEmail } from "@mendwell/email";
+import { noticeEmail, sendOpsAlert } from "@mendwell/email";
 import { server } from "../context";
 import { AppError, forbidden } from "../errors";
 import type { OrgContext } from "../session";
@@ -195,6 +195,8 @@ export async function handleStripeWebhook(rawBody: string, signature: string | n
           actionUrl: new URL("/settings#billing", billing.appUrl).toString(),
         });
         for (const to of owners) await mailer.send({ to, ...email }).catch(() => console.error("billing.email_failed", { orgId }));
+        // SECURITY.md §2 Monitoring: Stripe payment failures reach the operator too (ids only).
+        await sendOpsAlert({ mailer, email: server().ops.email, webhookUrl: server().ops.webhookUrl }, { title: "Stripe payment failed", body: `Org ${orgId}: invoice payment failed; fixes paused until it's paid.` });
       }
       await syncSiteQuantity(orgId);
     }
