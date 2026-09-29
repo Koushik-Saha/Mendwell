@@ -18,3 +18,6 @@ playwright-report/
 !README.md
 .dev-outbox/
 apps/web/public/downloads/
+
+# PHPUnit run cache (machine-local)
+.phpunit.result.cache
