@@ -2,6 +2,7 @@ import { queue, task } from "@trigger.dev/sdk";
 import { workerDeps } from "../lib/deps";
 import { runSiteScan, type ScanSitePayload } from "../lib/scan-site";
 import { proposeFixesAfterScan } from "./fix-propose";
+import { isFinalAttempt } from "../lib/attempts";
 
 /**
  * One scan at a time per site: every trigger passes concurrencyKey = siteId, and each key gets
@@ -22,7 +23,7 @@ export const scanSiteTask = task({
     const outcome = await runSiteScan(
       { db: deps.db, store: deps.store, botInfoUrl: deps.botInfoUrl, net: deps.net },
       payload,
-      { runId: ctx.run.id, isFinalAttempt: ctx.attempt.number >= SCAN_MAX_ATTEMPTS },
+      { runId: ctx.run.id, isFinalAttempt: isFinalAttempt(ctx, SCAN_MAX_ATTEMPTS) },
     );
     // DECIDE + PROPOSE (PROJECT_SPEC §3) on what this scan found.
     if (outcome.status === "succeeded") await proposeFixesAfterScan({ orgId: payload.orgId, siteId: payload.siteId, scanId: outcome.scanId });

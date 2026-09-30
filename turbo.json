@@ -13,6 +13,7 @@
     },
     "lint": {},
     "test": {
+      "dependsOn": ["^typecheck"],
       "outputs": []
     },
     "dev": {

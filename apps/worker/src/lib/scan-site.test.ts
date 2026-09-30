@@ -267,6 +267,23 @@ describe("daily scans and retries", () => {
     // A later successful attempt can't resurrect a failed scan.
     expect(await runSiteScan(deps(), payload, { runId: "run_r", isFinalAttempt: true })).toMatchObject({ status: "skipped" });
   }, 120_000);
+
+  it("keeps one scan in flight per site: a second is refused, a daily run skips, other sites are unaffected", async () => {
+    const orgId = await freshOrg();
+    const site = await makeSite(orgId, `${fixtureBase}/clean/`);
+    const otherSite = await makeSite(orgId, `${fixtureBase}/messy/`);
+    const inFlight = await repos.scanRuns.createQueued(orgId, site.id, "manual");
+    expect(inFlight).not.toBeNull();
+    expect(await repos.scanRuns.createQueued(orgId, site.id, "manual")).toBeNull();
+    expect(await runSiteScan(deps(), { orgId, siteId: site.id, kind: "daily" }, { runId: "run_busy", isFinalAttempt: true })).toMatchObject({
+      status: "skipped",
+      reason: "scan_in_progress",
+    });
+    expect(await repos.scanRuns.createQueued(orgId, otherSite.id, "manual")).not.toBeNull();
+    // Once the first finishes, the site can scan again.
+    await repos.scanRuns.finish(orgId, inFlight?.id ?? "", { status: "failed", workerSeconds: 0 });
+    expect(await repos.scanRuns.createQueued(orgId, site.id, "manual")).not.toBeNull();
+  });
 });
 
 describe("without object storage", () => {

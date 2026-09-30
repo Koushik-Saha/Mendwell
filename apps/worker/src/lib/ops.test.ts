@@ -2,8 +2,9 @@ import type { Db } from "@mendwell/db";
 import { fixes, issues, scans } from "@mendwell/db/schema";
 import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
 import type { EmailMessage } from "@mendwell/email";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { runOpsMonitor } from "./ops";
+import { runOpsMonitor, STALE_SCAN_AFTER_MS } from "./ops";
 
 vi.mock("@trigger.dev/sdk", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
@@ -39,5 +40,22 @@ describe("runOpsMonitor", () => {
     expect(pushes).toHaveLength(3);
     expect(JSON.stringify(sent)).not.toMatch(/https:\/\/a\.test/); // counts only, no customer content
     expect((await runOpsMonitor({ db, channel, now })).sent).toBe(0); // once per hour
+  });
+
+  it("fails scans a lost run left queued or running, so the site can scan again", async () => {
+    const org = await seedOrgGraph(db, "ops-stale");
+    const channel = { mailer: { send: async () => ({}) }, email: null, webhookUrl: null };
+    const now = new Date();
+    const at = (msAgo: number) => new Date(now.getTime() - msAgo);
+    // The seeded site's scan, left running by a run that died hours ago.
+    await db.update(scans).set({ status: "running", createdAt: at(STALE_SCAN_AFTER_MS + 60_000) }).where(eq(scans.id, org.scan.id));
+
+    expect((await runOpsMonitor({ db, channel, now })).staleScans).toBe(1);
+    expect((await db.select().from(scans).where(eq(scans.id, org.scan.id)))[0]).toMatchObject({ status: "failed", error: "stale" });
+
+    // A scan that's merely slow isn't touched.
+    const [recent] = await db.insert(scans).values({ orgId: org.orgId, siteId: org.site.id, kind: "manual", status: "running", createdAt: at(10 * 60_000) }).returning();
+    expect((await runOpsMonitor({ db, channel, now })).staleScans).toBe(0);
+    expect((await db.select().from(scans).where(eq(scans.id, recent?.id ?? "")))[0]?.status).toBe("running");
   });
 });

@@ -3,6 +3,7 @@ import { workerDeps } from "../lib/deps";
 import { runFixApply, type FixTaskPayload, type FixWorkDeps } from "../lib/fix-apply";
 import { runFixSweep } from "../lib/fix-sweep";
 import { runFixVerify } from "../lib/fix-verify";
+import { isFinalAttempt } from "../lib/attempts";
 
 /**
  * Every write to a site (apply and undo) runs on this queue with concurrencyKey = siteId, so a
@@ -37,7 +38,7 @@ export const fixApplyTask = task({
   machine: "small-1x",
   maxDuration: 5 * 60,
   retry: { maxAttempts: APPLY_MAX_ATTEMPTS, minTimeoutInMs: 30_000, maxTimeoutInMs: 300_000, factor: 2 },
-  run: async (payload: FixTaskPayload, { ctx }) => runFixApply(fixWorkDeps(), payload, { isFinalAttempt: ctx.attempt.number >= APPLY_MAX_ATTEMPTS }),
+  run: async (payload: FixTaskPayload, { ctx }) => runFixApply(fixWorkDeps(), payload, { isFinalAttempt: isFinalAttempt(ctx, APPLY_MAX_ATTEMPTS) }),
 });
 
 export const fixVerifyTask = task({
@@ -47,7 +48,7 @@ export const fixVerifyTask = task({
   maxDuration: 5 * 60,
   retry: { maxAttempts: VERIFY_TASK_MAX_ATTEMPTS, minTimeoutInMs: 30_000, maxTimeoutInMs: 120_000, factor: 2 },
   run: async (payload: FixTaskPayload & { attempt: number }, { ctx }) =>
-    runFixVerify(fixWorkDeps(), payload, { isFinalAttempt: ctx.attempt.number >= VERIFY_TASK_MAX_ATTEMPTS }),
+    runFixVerify(fixWorkDeps(), payload, { isFinalAttempt: isFinalAttempt(ctx, VERIFY_TASK_MAX_ATTEMPTS) }),
 });
 
 /** Keyed per fix and 10-minute window: repeated triggers (proposal, approval, sweeper) collapse. */

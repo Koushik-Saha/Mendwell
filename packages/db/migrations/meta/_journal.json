@@ -64,6 +64,13 @@
       "when": 1790705581573,
       "tag": "0008_platform",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790801053677,
+      "tag": "0009_one_scan_per_site",
+      "breakpoints": true
     }
   ]
 }

@@ -24,6 +24,12 @@ export default defineConfig({
     },
   },
   build: {
+    // playwright-core lazily requires optional packages (chromium-bidi) that esbuild can't resolve;
+    // load Playwright and Lighthouse from node_modules at run time instead of bundling them.
+    external: ["playwright", "playwright-core", "@axe-core/playwright", "lighthouse", "chrome-launcher"],
+    // esbuild's keepNames wraps functions in __name(), which doesn't exist inside the browser:
+    // any function we hand to page.evaluate / addInitScript would throw "__name is not defined".
+    keepNames: false,
     extensions: [playwright({ browsers: ["chromium"], version: PLAYWRIGHT_VERSION })],
   },
 });

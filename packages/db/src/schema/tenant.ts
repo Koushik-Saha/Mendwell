@@ -172,6 +172,8 @@ export const scans = pgTable(
     index("scans_org_id_idx").on(t.orgId),
     index("scans_site_id_idx").on(t.siteId),
     index("scans_status_idx").on(t.status),
+    // One scan at a time per site: a second "Scan now" (or a daily run) can't slip in beside one in flight.
+    uniqueIndex("scans_site_in_flight_unique").on(t.siteId).where(sql`${t.status} in ('queued', 'running')`),
     siteFk("scans_site_fk", t.siteId, t.orgId),
     check(
       "scans_owner",

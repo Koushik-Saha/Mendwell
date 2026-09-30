@@ -1,6 +1,9 @@
-import { opsAlertsRepo, opsMetricsRepo, retentionRepo, type Db } from "@mendwell/db";
+import { opsAlertsRepo, opsMetricsRepo, retentionRepo, systemSitesRepo, type Db } from "@mendwell/db";
 import { sendOpsAlert, type OpsChannel } from "@mendwell/email";
 import { logger } from "@trigger.dev/sdk";
+
+/** Longer than a scan can take with every retry (3 attempts × 15 min, plus backoff), and a wait in the queue. */
+export const STALE_SCAN_AFTER_MS = 3 * 3_600_000;
 
 /** SECURITY.md §2 Monitoring thresholds, over the last hour. Minimum counts keep one bad fix from paging anyone. */
 export const OPS_THRESHOLDS = {
@@ -21,6 +24,9 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 export async function runOpsMonitor(deps: { db: Db; channel: OpsChannel; now?: Date }) {
   const now = deps.now ?? new Date();
   const hour = now.toISOString().slice(0, 13);
+  // A run that died without recording its end (crash, lost worker) would block the site's scans for good.
+  const staleScans = await systemSitesRepo(deps.db).failStaleScans(new Date(now.getTime() - STALE_SCAN_AFTER_MS));
+  if (staleScans) logger.warn("ops.stale_scans_failed", { count: staleScans });
   const m = await opsMetricsRepo(deps.db).window(new Date(now.getTime() - 3_600_000));
   const alerts: { key: string; title: string; body: string }[] = [];
 
@@ -44,7 +50,7 @@ export async function runOpsMonitor(deps: { db: Db; channel: OpsChannel; now?: D
     sent++;
   }
   logger.info("ops.monitor.done", { ...m, alerts: alerts.length, sent });
-  return { metrics: m, alerts: alerts.map((a) => a.key), sent };
+  return { metrics: m, alerts: alerts.map((a) => a.key), sent, staleScans };
 }
 
 export async function runRetention(deps: { db: Db; now?: Date }) {

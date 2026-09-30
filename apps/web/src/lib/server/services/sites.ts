@@ -79,8 +79,9 @@ export async function startScan(ctx: OrgContext, siteId: string) {
   if (!scansEnabled) throw new AppError("scans_unavailable", "Scans aren't set up on this server yet (Trigger.dev key missing).", 503);
   if (await repos.scanRuns.active(ctx.orgId, site.id)) throw new AppError("conflict", "A scan is already running for this site.", 409);
 
+  // The check above is for a friendly message; the unique index settles a race between two clicks.
   const scan = await repos.scanRuns.createQueued(ctx.orgId, site.id, "manual");
-  if (!scan) throw new Error("scan insert returned no row");
+  if (!scan) throw new AppError("conflict", "A scan is already running for this site.", 409);
   try {
     const { runId } = await enqueueScan({ orgId: ctx.orgId, siteId: site.id, scanId: scan.id, kind: "manual" });
     await repos.scanRuns.setRunId(ctx.orgId, scan.id, runId);

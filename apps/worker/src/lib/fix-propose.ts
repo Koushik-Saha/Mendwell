@@ -147,6 +147,9 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
 
   const proposals: Proposal[] = [];
   const liveAttachments = await repos.fixRecords.liveAltAttachmentIds(orgId, site.id);
+  // One meta fix per post and field: the same post can be crawled at several URLs (?replytocom=…),
+  // and a second fix for a field would only end in a conflict once the first is applied.
+  const liveMeta = await repos.fixRecords.liveMetaTargets(orgId, site.id);
   const byPage = new Map<string, Candidate[]>();
   for (const c of candidates) byPage.set(c.pageUrl, [...(byPage.get(c.pageUrl) ?? []), c]);
   const ownsBrowser = !deps.browser;
@@ -245,9 +248,21 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
       skip(ids, deps.ai ? "ai_budget_reached" : "ai_not_configured", false);
       return [];
     }
+    const postId = page.postId;
+    const firstFree = (field: "title" | "description") => {
+      const fieldIssues = issues.filter((i) => i.rule.startsWith(`meta-${field}`));
+      if (fieldIssues.length === 0) return [];
+      if (liveMeta.has(`${postId}:${field}`)) {
+        skip(fieldIssues.map((i) => i.id), "meta_already_proposed", false); // resolves when that fix is applied
+        return [];
+      }
+      if (fieldIssues.length > 1) skip(fieldIssues.slice(1).map((i) => i.id), "meta_already_proposed", false); // e.g. missing + too long: one fix
+      return fieldIssues.slice(0, 1);
+    };
+    const titleIssues = firstFree("title");
+    const descriptionIssues = firstFree("description");
+    if (titleIssues.length === 0 && descriptionIssues.length === 0) return [];
     const ai = deps.ai as NonNullable<ProposeDeps["ai"]>;
-    const titleIssues = issues.filter((i) => i.rule.startsWith("meta-title"));
-    const descriptionIssues = issues.filter((i) => i.rule.startsWith("meta-description"));
     // One call per page writes whatever the page needs; each issue gets its own fix.
     const result = await generateMeta(
       {
@@ -271,7 +286,6 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
       return [];
     }
     const current = { title: page.title, description: page.metaDescription };
-    const postId = page.postId;
     const out: Proposal[] = [];
     const base = { category: "meta" as const, needsReview: false, generatorModel: ai.textModel, promptVersion: META_PROMPT_VERSION, validation: { ok: true, attempts: result.attempts } };
     let usage: Usage[] = result.usage; // charged to the first fix from this call
@@ -283,6 +297,8 @@ export async function runFixPropose(deps: ProposeDeps, payload: FixProposePayloa
       out.push({ ...base, issue, value: { kind: "meta", postId, description: result.value.description, current }, usage });
       usage = [];
     }
+    if (titleIssues.length) liveMeta.add(`${postId}:title`);
+    if (descriptionIssues.length) liveMeta.add(`${postId}:description`);
     return out;
   }
 

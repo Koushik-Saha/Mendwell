@@ -4,7 +4,7 @@ import { connectorSecretContext, encrypt, parseKeyring, verifySignature, type Co
 import { createRepositories, type Db, type Repositories } from "@mendwell/db";
 import { aiUsage, fixes, issues, scans, siteCategories, sites, subscriptions } from "@mendwell/db/schema";
 import { createTestDb, seedOrgGraph } from "@mendwell/db/testing";
-import type { ModelClient, ModelRequest } from "@mendwell/generators";
+import { ALT_PROMPT_VERSION, type ModelClient, type ModelRequest } from "@mendwell/generators";
 import { eq } from "drizzle-orm";
 import { chromium, type Browser } from "playwright";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -44,6 +44,9 @@ const pages: Record<string, string> = {
     <body class="page-id-9 woocommerce-checkout"><main><h1>Checkout</h1><p>Review your order and pay securely with a card.</p>
     <img src="/wp/cards.svg" class="wp-image-13" width="160" height="32"></main></body></html>`,
 };
+
+// WordPress comment-reply links: the same post at a second URL.
+pages["/wp/?replytocom=1"] = pages["/wp/"] as string;
 
 beforeAll(async () => {
   ({ db, close: closeDb } = await createTestDb());
@@ -219,7 +222,7 @@ describe("runFixPropose", () => {
       status: "approved",
       bucketAtCreation: "auto",
       category: "alt_text",
-      promptVersion: "alt-v1",
+      promptVersion: ALT_PROMPT_VERSION,
       proposedValue: { kind: "alt", attachmentId: 11, alt: "Maria loading boiler parts into a white van", decorative: false },
       finalValue: { kind: "alt", attachmentId: 11 },
     });
@@ -365,3 +368,39 @@ describe("runFixPropose guards", () => {
     expect(again).toMatchObject({ proposed: 0, aiCalls: 0 });
   });
 });
+
+describe("one meta fix per post and field", () => {
+  it("proposes one description for a post crawled at two URLs with two description issues, and none again while it's live", async () => {
+    const s = await setup("propose-meta-once");
+    const scanId = s.scanId;
+    const extra = async (rule: string, pageUrl: string) =>
+      db.insert(issues).values({
+        orgId: s.orgId,
+        siteId: s.siteId,
+        fingerprint: `${rule}:${pageUrl}:extra`,
+        rule,
+        category: "seo",
+        severity: "moderate",
+        pageUrl,
+        target: { page: true },
+        evidence: { message: "x" },
+        bucket: "approval",
+        firstScanId: scanId,
+        lastScanId: scanId,
+      });
+    await extra("meta-description-missing", `${base}/wp/?replytocom=1`);
+    await extra("meta-description-too-long", `${base}/wp/`);
+
+    const outcome = await runFixPropose(deps(), s);
+    const metaFixes = (await db.select().from(fixes).where(eq(fixes.siteId, s.siteId))).filter((f) => f.category === "meta");
+    expect(metaFixes).toHaveLength(1);
+    expect(metaFixes[0]?.proposedValue).toMatchObject({ postId: 2, description: DESCRIPTION });
+    if (outcome.status !== "done") throw new Error(outcome.status);
+    expect(outcome.noFix.meta_already_proposed).toBe(2);
+
+    // The next run (e.g. after tomorrow's scan) doesn't add a second fix for the same field.
+    await runFixPropose(deps(), s);
+    expect((await db.select().from(fixes).where(eq(fixes.siteId, s.siteId))).filter((f) => f.category === "meta")).toHaveLength(1);
+  }, 120_000);
+});
+

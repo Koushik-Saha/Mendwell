@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import pkg from "../package.json" with { type: "json" };
-import { PLAYWRIGHT_VERSION } from "../trigger.config";
+import config, { PLAYWRIGHT_VERSION } from "../trigger.config";
 
 describe("Playwright pin", () => {
   it("package.json pins an exact version (no range)", () => {
@@ -24,5 +24,15 @@ describe("Playwright pin", () => {
     const require = createRequire(import.meta.url);
     const installed = JSON.parse(readFileSync(require.resolve("playwright/package.json"), "utf8")) as { version: string };
     expect(installed.version).toBe(PLAYWRIGHT_VERSION);
+  });
+});
+
+describe("Trigger.dev build", () => {
+  it("doesn't keep function names (functions sent to page.evaluate must not reference __name)", () => {
+    expect(config.build?.keepNames).toBe(false);
+  });
+
+  it("loads Playwright from node_modules instead of bundling it", () => {
+    expect(config.build?.external).toEqual(expect.arrayContaining(["playwright", "playwright-core"]));
   });
 });

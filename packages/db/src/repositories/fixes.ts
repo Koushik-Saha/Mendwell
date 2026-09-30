@@ -133,6 +133,23 @@ export function fixRecordsRepo(db: Db) {
       return new Set(rows.map((r) => Number(r.id)).filter((n) => Number.isInteger(n) && n > 0));
     },
 
+    /** "postId:title" / "postId:description" for meta fields that already have a fix in flight. */
+    liveMetaTargets: async (orgId: OrgId, siteId: string): Promise<Set<string>> => {
+      if (!isUuid(siteId)) return new Set();
+      const rows = await db
+        .select({ value: fixes.proposedValue })
+        .from(fixes)
+        .where(and(eq(fixes.orgId, orgId), eq(fixes.siteId, siteId), eq(fixes.category, "meta"), inArray(fixes.status, [...ACTIVE_STATUSES])));
+      const out = new Set<string>();
+      for (const { value } of rows) {
+        const v = value as { postId?: unknown; title?: unknown; description?: unknown };
+        if (!Number.isInteger(v.postId)) continue;
+        if (typeof v.title === "string") out.add(`${v.postId as number}:title`);
+        if (typeof v.description === "string") out.add(`${v.postId as number}:description`);
+      }
+      return out;
+    },
+
     /** fix.propose tried these issues and produced no fix; don't try again until the retry window. */
     markAttempted: async (orgId: OrgId, issueIds: string[], now = new Date()) => {
       const ids = issueIds.filter(isUuid);

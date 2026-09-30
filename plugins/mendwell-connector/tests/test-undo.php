@@ -65,4 +65,52 @@ class Test_Mendwell_Undo extends Mendwell_Test_Case {
 		$this->assertSame( 'Old \\ title', get_post_meta( $post, 'rank_math_title', true ), 'backslashes survive the round trip' );
 		$this->assertSame( '<a href="/gone/">x</a>', get_post_field( 'post_content', $post ) );
 	}
+
+	public function test_undoes_one_image_and_keeps_another_fix_on_the_same_post() {
+		$van    = $this->image( 'van' );
+		$boiler = $this->image( 'boiler' );
+		$img    = function ( $id ) {
+			return '<figure class="wp-block-image"><img src="' . wp_get_attachment_url( $id ) . '" class="wp-image-' . $id . '"/></figure>';
+		};
+		$post   = self::factory()->post->create( array( 'post_content' => '<p>Our van.</p>' . $img( $van ) . '<p>A boiler service.</p>' . $img( $boiler ) ) );
+		$original = get_post_field( 'post_content', $post ); // as WordPress stored it
+		$fix    = function ( $fix_id, $id, $alt ) {
+			return $this->dispatch( $this->signed( 'POST', '/mendwell/v1/fix/alt', array( 'fixId' => $fix_id, 'attachmentId' => $id, 'value' => $alt, 'expectedCurrent' => '' ) ) );
+		};
+		$fix( 'fix_u6', $van, 'Van with lettering' );
+		$fix( 'fix_u7', $boiler, 'Engineer servicing a boiler' );
+
+		$response = $this->undo( 'fix_u6' );
+		$this->assertSame( 200, $response->get_status(), 'the other fix on the same post is not a conflict' );
+		$content = get_post_field( 'post_content', $post );
+		$this->assertStringNotContainsString( 'Van with lettering', $content );
+		$this->assertStringContainsString( 'alt="Engineer servicing a boiler"', $content, 'the other fix survives' );
+		$this->assertSame( '', get_post_meta( $van, '_wp_attachment_image_alt', true ) );
+
+		$this->assertSame( 200, $this->undo( 'fix_u7' )->get_status() );
+		$this->assertSame( $original, get_post_field( 'post_content', $post ), 'both undone: back to the original, byte for byte' );
+	}
+
+	public function test_keeps_a_human_edit_elsewhere_in_the_post_but_refuses_one_to_the_fixed_image() {
+		$image = $this->image();
+		$post  = $this->apply_alt( $image, 'fix_u8' );
+		Mendwell_Content::save_content( $post, get_post_field( 'post_content', $post ) . '<p>Opening hours: 8 to 6.</p>' );
+		$this->assertSame( 200, $this->undo( 'fix_u8' )->get_status() );
+		$this->assertStringContainsString( 'Opening hours', get_post_field( 'post_content', $post ), 'the owner\'s paragraph stays' );
+		$this->assertStringContainsString( 'alt=""', get_post_field( 'post_content', $post ) );
+
+		$post = $this->apply_alt( $image, 'fix_u9' );
+		Mendwell_Content::save_content( $post, str_replace( 'alt="Applied alt"', 'alt="Owner wrote this"', get_post_field( 'post_content', $post ) ) );
+		$this->assertSame( 409, $this->undo( 'fix_u9' )->get_status() );
+		$this->assertStringContainsString( 'Owner wrote this', get_post_field( 'post_content', $post ) );
+	}
+
+	public function test_undo_region_finds_only_the_changed_part() {
+		$before = str_repeat( 'a', 100 ) . '<img src="x">' . str_repeat( 'b', 100 );
+		$after  = str_repeat( 'a', 100 ) . '<img alt="New" src="x">' . str_repeat( 'b', 100 );
+		$this->assertSame( $before, Mendwell_Content::undo_region( $after, $before, $after ) );
+		$this->assertSame( 'intro ' . $before, Mendwell_Content::undo_region( 'intro ' . $after, $before, $after ) );
+		$this->assertNull( Mendwell_Content::undo_region( str_replace( 'New', 'Other', $after ), $before, $after ) );
+		$this->assertNull( Mendwell_Content::undo_region( $after . $after, $before, $after ), 'ambiguous: found twice' );
+	}
 }

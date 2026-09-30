@@ -178,9 +178,21 @@ final class Mendwell_Writer {
 		return (string) get_post_meta( (int) $row->object_id, $row->field, true );
 	}
 
+	/**
+	 * A field is undoable when it still holds what Mendwell wrote. For post content, only the region
+	 * this fix changed has to be as it was left: other fixes and edits elsewhere in the post are fine.
+	 */
+	private static function undoable( $row ) {
+		if ( 'post_content' === $row->field ) {
+			return null !== Mendwell_Content::undo_region( self::read( $row ), (string) $row->before_value, (string) $row->after_value );
+		}
+		return self::read( $row ) === (string) $row->after_value;
+	}
+
 	private static function restore( $row ) {
 		if ( 'post_content' === $row->field ) {
-			return Mendwell_Content::save_content( (int) $row->object_id, $row->before_value );
+			$restored = Mendwell_Content::undo_region( self::read( $row ), (string) $row->before_value, (string) $row->after_value );
+			return null === $restored ? new WP_Error( 'mendwell_conflict', 'The post changed.' ) : Mendwell_Content::save_content( (int) $row->object_id, $restored );
 		}
 		update_post_meta( (int) $row->object_id, $row->field, wp_slash( $row->before_value ) );
 		return true;
@@ -204,7 +216,7 @@ final class Mendwell_Writer {
 		}
 		$conflicts = array();
 		foreach ( $rows as $row ) {
-			if ( self::read( $row ) !== (string) $row->after_value ) {
+			if ( ! self::undoable( $row ) ) {
 				$conflicts[] = array( 'objectId' => (int) $row->object_id, 'field' => $row->field );
 			}
 		}

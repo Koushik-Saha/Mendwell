@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { normalizeUrl, unsafeOrgId, type Bucket, type Issue, type OrgId, type Role } from "@mendwell/core";
-import { and, count, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { Db } from "../db";
 import { alerts, issues, memberships, organizations, pages, scans, sites, uptimeChecks, users } from "../schema";
 import { first, isUuid } from "./util";
@@ -49,8 +49,9 @@ export function scanRunsRepo(db: Db) {
           .limit(1),
       ),
 
+    /** Null when this site already has a scan queued or running (scans_site_in_flight_unique). */
     createQueued: async (orgId: OrgId, siteId: string, kind: "daily" | "manual") =>
-      first(await db.insert(scans).values({ orgId, siteId, kind, status: "queued", progress: { phase: "queued" } }).returning()),
+      first(await db.insert(scans).values({ orgId, siteId, kind, status: "queued", progress: { phase: "queued" } }).onConflictDoNothing().returning()) ?? null,
 
     setRunId: async (orgId: OrgId, id: string, triggerRunId: string) => {
       await db.update(scans).set({ triggerRunId }).where(scoped(orgId, id));
@@ -287,5 +288,18 @@ export function systemSitesRepo(db: Db) {
           .innerJoin(organizations, eq(organizations.id, sites.orgId))
           .where(and(eq(sites.status, "active"), isNotNull(sites.ownershipVerifiedAt)))
       ).map((r) => ({ ...r, orgId: unsafeOrgId(r.orgId) })),
+
+    /**
+     * Site scans a lost or crashed run left queued/running since `before`: mark them failed so the
+     * site isn't blocked from scanning again. Returns how many.
+     */
+    failStaleScans: async (before: Date) =>
+      (
+        await db
+          .update(scans)
+          .set({ status: "failed", error: "stale", finishedAt: new Date(), progress: { phase: "done" } })
+          .where(and(isNotNull(scans.siteId), inArray(scans.status, ["queued", "running"]), lt(scans.createdAt, before)))
+          .returning({ id: scans.id })
+      ).length,
   };
 }

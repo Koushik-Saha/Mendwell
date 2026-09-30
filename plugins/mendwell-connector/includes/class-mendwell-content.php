@@ -9,6 +9,9 @@
 defined( 'ABSPATH' ) || exit;
 
 final class Mendwell_Content {
+
+	/** Bytes of unchanged text either side of a write that undo must still find around it. */
+	const UNDO_CONTEXT = 60;
 	/** Does this <img> belong to the attachment (class wp-image-ID, or the attachment's file)? */
 	private static function img_matches( WP_HTML_Tag_Processor $p, $attachment_id, $file_stem ) {
 		$class = $p->get_attribute( 'class' );
@@ -80,6 +83,44 @@ final class Mendwell_Content {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Reverse one write to a post without touching anything else in it. A write changes one region
+	 * (between the longest common prefix and suffix of before/after); undo looks for that region, as
+	 * the write left it and with a little of its surroundings, exactly once in the current content,
+	 * and puts the old region back. Other fixes or edits elsewhere in the post are kept. If the
+	 * region itself changed (or can't be found unambiguously), returns null: a conflict.
+	 *
+	 * @param string $current Post content now.
+	 * @param string $before  Post content before the write.
+	 * @param string $after   Post content the write left.
+	 * @return string|null
+	 */
+	public static function undo_region( $current, $before, $after ) {
+		if ( $current === $after ) {
+			return $before;
+		}
+		$before_len = strlen( $before );
+		$after_len  = strlen( $after );
+		$max        = min( $before_len, $after_len );
+		$prefix     = 0;
+		while ( $prefix < $max && $before[ $prefix ] === $after[ $prefix ] ) {
+			++$prefix;
+		}
+		$suffix = 0;
+		while ( $suffix < $max - $prefix && $before[ $before_len - 1 - $suffix ] === $after[ $after_len - 1 - $suffix ] ) {
+			++$suffix;
+		}
+		$lead    = substr( $after, max( 0, $prefix - self::UNDO_CONTEXT ), min( $prefix, self::UNDO_CONTEXT ) );
+		$trail   = substr( $after, $after_len - $suffix, min( $suffix, self::UNDO_CONTEXT ) );
+		$search  = $lead . substr( $after, $prefix, $after_len - $suffix - $prefix ) . $trail;
+		$replace = $lead . substr( $before, $prefix, $before_len - $suffix - $prefix ) . $trail;
+		if ( '' === $search || 1 !== substr_count( $current, $search ) ) {
+			return null;
+		}
+		$at = strpos( $current, $search );
+		return substr( $current, 0, $at ) . $replace . substr( $current, $at + strlen( $search ) );
 	}
 
 	/**

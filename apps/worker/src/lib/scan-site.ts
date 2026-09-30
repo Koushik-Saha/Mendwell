@@ -83,7 +83,7 @@ export async function runSiteScan(deps: ScanDeps, payload: ScanSitePayload, run:
   if (!scanId) {
     const existing = await repos.scanRuns.byRunId(orgId, run.runId);
     const created = existing ?? (await repos.scanRuns.createQueued(orgId, site.id, payload.kind));
-    if (!created) throw new Error("could not create scan row");
+    if (!created) return { status: "skipped", scanId: null, reason: "scan_in_progress" };
     if (!existing) await repos.scanRuns.setRunId(orgId, created.id, run.runId);
     scanId = created.id;
   } else {
