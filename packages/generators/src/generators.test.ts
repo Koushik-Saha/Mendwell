@@ -124,6 +124,8 @@ describe("generateMeta", () => {
 describe("pricing and delimiting", () => {
   it("prices known models, dated ids, and charges unknown models the highest rate", () => {
     expect(priceFor("claude-haiku-4-5-20251001")).toMatchObject({ input: 1, output: 5, known: true });
+    expect(priceFor("claude-sonnet-5")).toMatchObject({ input: 2, output: 10, known: true });
+    expect(priceFor("claude-sonnet-5-5")).toMatchObject({ input: 2, output: 10, known: true });
     expect(priceFor("some-new-model")).toMatchObject({ known: false, input: 15, output: 75 });
     expect(costUsd("claude-haiku-4-5", 1_000_000, 0)).toBe(1);
   });

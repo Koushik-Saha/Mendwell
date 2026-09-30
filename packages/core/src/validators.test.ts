@@ -15,6 +15,7 @@ describe("validateAltText", () => {
     ["x".repeat(126), "length"],
     ["Image of a white van", "image_of"],
     ["A photo of a white van", "image_of"],
+    ["Simple graphic of a grey mug", "image_of"],
     ["IMG_2041.jpg showing a van", "file_name"],
     ["A <b>white</b> van", "html"],
     ["A white van &amp; driver", "html"],

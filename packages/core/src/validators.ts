@@ -81,7 +81,7 @@ export function validateAltText(value: string, context: AltContext): ValidationR
   const text = value.trim();
   const errors: ValidationError[] = [];
   if (text.length < ALT_MIN || text.length > ALT_MAX) errors.push({ code: "length", message: `Use ${ALT_MIN}–${ALT_MAX} characters (this was ${text.length}).` });
-  if (/\b(image|picture|photo|photograph|graphic|icon) of\b/i.test(text)) errors.push({ code: "image_of", message: 'Don\'t start with or include "image of", "picture of" or "photo of"; describe the content directly.' });
+  if (/\b(image|picture|photo|photograph|graphic|icon) of\b/i.test(text)) errors.push({ code: "image_of", message: 'Don\'t write "image of", "picture of", "photo of", "graphic of" or "icon of"; describe the content directly.' });
   const stem = context.fileName?.replace(/\.[a-z0-9]+$/i, "") ?? "";
   if (FILE_NAME.test(text) || (stem.length >= 4 && /[\d_-]/.test(stem) && normalize(text).includes(stem.toLowerCase()))) {
     errors.push({ code: "file_name", message: "Don't include the file name." });

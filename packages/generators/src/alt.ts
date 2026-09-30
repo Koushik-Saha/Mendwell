@@ -4,7 +4,7 @@ import type { ModelClient } from "./model";
 import { generate, type GenerationFailure, type GenerationSuccess } from "./run";
 import { UNTRUSTED_RULE, untrusted } from "./untrusted";
 
-export const ALT_PROMPT_VERSION = "alt-v1";
+export const ALT_PROMPT_VERSION = "alt-v2";
 
 export type AltInput = {
   /** Downscaled to ≤1024 px by the caller (PROJECT_SPEC §5.1). */
@@ -29,7 +29,7 @@ export type AltOutput = { decorative: true; alt: "" } | { decorative: false; alt
 const SYSTEM = [
   "You write alt text for images on small-business websites, for people using screen readers.",
   "Describe what the image shows and why it matters on this page, in one plain sentence of 5 to 125 characters.",
-  'Rules: start with the content itself (never "image of", "picture of" or "photo of"); no file names; no HTML, URLs or email addresses;',
+  'Rules: start with the content itself (never "image of", "picture of", "photo of", "graphic of" or "icon of"); no file names; no HTML, URLs or email addresses;',
   "don't repeat words; no ALL CAPS; never name a person, place or brand unless that name appears in the page content you're given;",
   "if the image contains important text (a logo or a sign), include that text; if the image is a link, describe where the link goes.",
   "If the image is purely decorative (a divider, background texture or spacer that adds no information), set decorative to true and alt to an empty string.",
